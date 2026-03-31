@@ -4,10 +4,22 @@ import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 
 export function SplashScreen() {
-  const [isVisible, setIsVisible] = useState(true)
+  const [isVisible, setIsVisible] = useState(false)
   const [isFadingOut, setIsFadingOut] = useState(false)
 
   useEffect(() => {
+    // Check if splash has already been shown in this session
+    const hasShownSplash = sessionStorage.getItem("flowday-splash-shown")
+    
+    if (hasShownSplash) {
+      setIsVisible(false)
+      return
+    }
+
+    // If not shown, show it and set the flag
+    setIsVisible(true)
+    sessionStorage.setItem("flowday-splash-shown", "true")
+
     // Show for 1.5s then fade out
     const fadeTimer = setTimeout(() => setIsFadingOut(true), 1500)
     const removeTimer = setTimeout(() => setIsVisible(false), 1900)
