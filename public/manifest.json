@@ -1,0 +1,47 @@
+{
+  "name": "FlowDay",
+  "short_name": "FlowDay",
+  "description": "Task & Habit Planner untuk Mahasiswa — kelola tugas kuliah dan bangun kebiasaan produktif.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "lang": "id",
+  "categories": ["productivity", "education"],
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Tugas",
+      "short_name": "Tasks",
+      "url": "/dashboard/tasks",
+      "description": "Lihat dan kelola tugas kuliah",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Kebiasaan",
+      "short_name": "Habits",
+      "url": "/dashboard/habits",
+      "description": "Tracking habit harian",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}
