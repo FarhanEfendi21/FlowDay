@@ -143,7 +143,7 @@ export function useToggleTaskStatus() {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: taskKeys.all() })
+      invalidateAll(queryClient)
     },
   })
 }

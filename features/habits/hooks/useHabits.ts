@@ -50,6 +50,7 @@ export function useCreateHabit() {
     mutationFn: createHabit,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.all() })
+      queryClient.invalidateQueries({ queryKey: ['stats'] })
     },
   })
 }
@@ -62,6 +63,7 @@ export function useDeleteHabit() {
     mutationFn: deleteHabit,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.all() })
+      queryClient.invalidateQueries({ queryKey: ['stats'] })
     },
   })
 }
@@ -128,6 +130,7 @@ export function useToggleHabit() {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.all() })
+      queryClient.invalidateQueries({ queryKey: ['stats'] })
     },
   })
 }
