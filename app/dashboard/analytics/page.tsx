@@ -375,21 +375,21 @@ function StatsCard({
 }) {
   return (
     <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">{title}</span>
-          <div className="text-muted-foreground">{icon}</div>
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs sm:text-sm text-muted-foreground truncate">{title}</span>
+          <div className="text-muted-foreground shrink-0">{icon}</div>
         </div>
         {isLoading ? (
-          <>
-            <Skeleton className="mt-2 h-7 w-20" />
-            <Skeleton className="mt-1 h-3 w-28" />
-          </>
+          <div className="mt-2 space-y-1">
+            <Skeleton className="h-7 w-20" />
+            <Skeleton className="h-3 w-28" />
+          </div>
         ) : (
-          <>
-            <p className="mt-2 text-2xl font-semibold">{value}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
-          </>
+          <div className="mt-2">
+            <p className="text-xl sm:text-2xl font-semibold truncate">{value}</p>
+            <p className="mt-1 text-[10px] sm:text-xs text-muted-foreground line-clamp-1">{subtitle}</p>
+          </div>
         )}
       </CardContent>
     </Card>

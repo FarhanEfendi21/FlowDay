@@ -191,95 +191,99 @@ export default function HabitsPage() {
           </div>
 
           {/* Weekly Tracker */}
-          <Card>
+          <Card className="overflow-hidden">
             <CardHeader>
               <CardTitle className="text-base font-medium">Tracker Mingguan</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0 sm:p-6">
               {habits.length > 0 ? (
-                <div className="space-y-4">
-                  {/* Header Row */}
-                  <div className="flex items-center">
-                    <div className="w-[180px] shrink-0" />
-                    <div className="flex flex-1 justify-around">
-                      {last7Days.map((day) => (
-                        <div
-                          key={day.date}
-                          className={`flex flex-col items-center ${
-                            day.isToday ? "text-foreground" : "text-muted-foreground"
-                          }`}
-                        >
-                          <span className="text-xs">{day.label}</span>
-                          <span
-                            className={`mt-1 flex h-7 w-7 items-center justify-center rounded-full text-sm ${
-                              day.isToday ? "bg-foreground text-background" : ""
+                <div className="overflow-x-auto pb-4 sm:pb-0">
+                  <div className="min-w-[600px] space-y-4 px-4 sm:px-0">
+                    {/* Header Row */}
+                    <div className="flex items-center">
+                      <div className="w-[140px] shrink-0 sm:w-[180px]" />
+                      <div className="flex flex-1 justify-around">
+                        {last7Days.map((day) => (
+                          <div
+                            key={day.date}
+                            className={`flex flex-col items-center ${
+                              day.isToday ? "text-foreground" : "text-muted-foreground"
                             }`}
                           >
-                            {day.dayNum}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="w-10 shrink-0" />
-                  </div>
-
-                  {/* Habit Rows */}
-                  {habits.map((habit) => (
-                    <div key={habit.id} className="flex items-center">
-                      <div className="flex w-[180px] shrink-0 items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
-                          <Flame className="h-4 w-4 text-orange-500" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{habit.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {habit.currentStreak} hari streak
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex flex-1 justify-around">
-                        {last7Days.map((day) => {
-                          const isCompleted = habit.logs.some(
-                            (log) => log.logDate === day.date && log.completed
-                          )
-                          return (
-                            <div key={day.date} className="flex justify-center">
-                              <Checkbox
-                                checked={isCompleted}
-                                onCheckedChange={() => handleToggle(habit.id, day.date)}
-                                className="h-6 w-6"
-                              />
-                            </div>
-                          )
-                        })}
-                      </div>
-                      <div className="w-10 shrink-0 flex justify-end">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => handleDelete(habit.id)}
-                              className="gap-2 text-destructive"
+                            <span className="text-[10px] uppercase tracking-wider sm:text-xs">{day.label}</span>
+                            <span
+                              className={`mt-1 flex h-7 w-7 items-center justify-center rounded-full text-xs sm:text-sm ${
+                                day.isToday ? "bg-foreground text-background" : ""
+                              }`}
                             >
-                              <Trash2 className="h-4 w-4" />
-                              Hapus
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                              {day.dayNum}
+                            </span>
+                          </div>
+                        ))}
                       </div>
+                      <div className="w-10 shrink-0" />
                     </div>
-                  ))}
+
+                    {/* Habit Rows */}
+                    {habits.map((habit) => (
+                      <div key={habit.id} className="flex items-center">
+                        <div className="flex w-[140px] shrink-0 items-center gap-2 sm:w-[180px]">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30 sm:h-8 sm:w-8">
+                            <Flame className="h-3.5 w-3.5 text-orange-500 sm:h-4 sm:w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-medium sm:text-sm">{habit.title}</p>
+                            <p className="text-[10px] text-muted-foreground sm:text-xs">
+                              {habit.currentStreak}d streak
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-1 justify-around">
+                          {last7Days.map((day) => {
+                            const isCompleted = habit.logs.some(
+                              (log) => log.logDate === day.date && log.completed
+                            )
+                            return (
+                              <div key={day.date} className="flex justify-center">
+                                <Checkbox
+                                  checked={isCompleted}
+                                  onCheckedChange={() => handleToggle(habit.id, day.date)}
+                                  className="h-5 w-5 sm:h-6 sm:w-6"
+                                />
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <div className="w-10 shrink-0 flex justify-end">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(habit.id)}
+                                className="gap-2 text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Hapus
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
-                <Empty>
-                  <EmptyMedia variant="icon"><Flame /></EmptyMedia>
-                  <EmptyTitle>Belum ada habit</EmptyTitle>
-                  <EmptyDescription>Tambah habit pertamamu untuk mulai tracking.</EmptyDescription>
-                </Empty>
+                <div className="p-6">
+                  <Empty>
+                    <EmptyMedia variant="icon"><Flame /></EmptyMedia>
+                    <EmptyTitle>Belum ada habit</EmptyTitle>
+                    <EmptyDescription>Tambah habit pertamamu untuk mulai tracking.</EmptyDescription>
+                  </Empty>
+                </div>
               )}
             </CardContent>
           </Card>

@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
 import { QueryProvider } from '@/providers/query-provider'
+import { SplashScreen } from '@/components/pwa/splash-screen'
 import './globals.css'
 
 const plusJakarta = Plus_Jakarta_Sans({ 
@@ -68,6 +69,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body className={`${plusJakarta.variable} font-sans antialiased`}>
+        <SplashScreen />
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
