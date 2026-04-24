@@ -51,13 +51,13 @@ export function ProgressChart({ tasks }: ProgressChartProps) {
         <BarChart data={data} barGap={4}>
           <XAxis
             dataKey="name"
-            stroke="hsl(var(--muted-foreground))"
+            stroke="var(--muted-foreground)"
             fontSize={12}
             tickLine={false}
             axisLine={false}
           />
           <YAxis
-            stroke="hsl(var(--muted-foreground))"
+            stroke="var(--muted-foreground)"
             fontSize={12}
             tickLine={false}
             axisLine={false}
@@ -80,7 +80,7 @@ export function ProgressChart({ tasks }: ProgressChartProps) {
           />
           <Bar
             dataKey="completed"
-            fill="hsl(var(--foreground))"
+            fill="var(--primary)"
             radius={[4, 4, 0, 0]}
             maxBarSize={40}
           />

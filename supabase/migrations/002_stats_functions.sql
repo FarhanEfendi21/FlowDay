@@ -100,10 +100,8 @@ BEGIN
   ),
   streak_data AS (
     SELECT
-      hl.habit_id,
-      MAX(hl.log_date) AS last_log,
-      -- Longest streak approximation via window function
-      MAX(streak_len) AS longest_streak
+      sub.habit_id,
+      MAX(sub.streak_len) AS longest_streak
     FROM (
       SELECT
         hl.habit_id,
@@ -126,7 +124,7 @@ BEGIN
     h.current_streak,
     COALESCE(sd.longest_streak, 0)::INT          AS longest_streak,
     CASE
-      WHEN ls.total_days = 0 THEN 0
+      WHEN COALESCE(ls.total_days, 0) = 0 THEN 0
       ELSE ROUND((ls.completed_days::NUMERIC / ls.total_days::NUMERIC) * 100, 1)
     END                                          AS completion_rate,
     COALESCE(ls.total_days, 0)                   AS total_days,
@@ -158,32 +156,17 @@ RETURNS TABLE (
 BEGIN
   RETURN QUERY
   SELECT
-    -- Task stats
-    COUNT(t.id)                                               AS total_tasks,
-    COUNT(t.id) FILTER (WHERE t.status = 'done')              AS completed_tasks,
-    COUNT(t.id) FILTER (WHERE t.status = 'todo')              AS pending_tasks,
-    COUNT(t.id) FILTER (
-      WHERE t.status = 'todo' AND t.due_date < CURRENT_DATE
-    )                                                         AS overdue_tasks,
-    COUNT(t.id) FILTER (
-      WHERE t.status = 'todo' AND t.due_date = CURRENT_DATE
-    )                                                         AS tasks_due_today,
-    COUNT(t.id) FILTER (
-      WHERE t.status = 'todo'
-        AND t.due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
-    )                                                         AS tasks_due_week,
-    -- Habit stats (subquery)
-    (SELECT COUNT(*) FROM public.habits h WHERE h.user_id = p_user_id)
-                                                              AS total_habits,
-    (SELECT COALESCE(SUM(h.current_streak), 0)
-     FROM   public.habits h WHERE h.user_id = p_user_id)     AS total_streak,
-    (SELECT COUNT(DISTINCT hl.habit_id)
-     FROM   public.habit_logs hl
-     WHERE  hl.user_id  = p_user_id
-       AND  hl.log_date = CURRENT_DATE
-       AND  hl.completed = TRUE)                              AS habits_done_today
-  FROM public.tasks t
-  WHERE t.user_id = p_user_id;
+    -- Task stats (Total tasks filtered by user)
+    (SELECT COUNT(*) FROM public.tasks t WHERE t.user_id = p_user_id) AS total_tasks,
+    (SELECT COUNT(*) FROM public.tasks t WHERE t.user_id = p_user_id AND t.status = 'done') AS completed_tasks,
+    (SELECT COUNT(*) FROM public.tasks t WHERE t.user_id = p_user_id AND t.status = 'todo') AS pending_tasks,
+    (SELECT COUNT(*) FROM public.tasks t WHERE t.user_id = p_user_id AND t.status = 'todo' AND t.due_date < CURRENT_DATE) AS overdue_tasks,
+    (SELECT COUNT(*) FROM public.tasks t WHERE t.user_id = p_user_id AND t.status = 'todo' AND t.due_date = CURRENT_DATE) AS tasks_due_today,
+    (SELECT COUNT(*) FROM public.tasks t WHERE t.user_id = p_user_id AND t.status = 'todo' AND t.due_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days') AS tasks_due_week,
+    -- Habit stats (Subqueries are already efficient here)
+    (SELECT COUNT(*) FROM public.habits h WHERE h.user_id = p_user_id) AS total_habits,
+    (SELECT COALESCE(SUM(h.current_streak), 0) FROM public.habits h WHERE h.user_id = p_user_id) AS total_streak,
+    (SELECT COUNT(DISTINCT hl.habit_id) FROM public.habit_logs hl WHERE hl.user_id = p_user_id AND hl.log_date = CURRENT_DATE AND hl.completed = TRUE) AS habits_done_today;
 END;
 $$;
 

@@ -146,13 +146,13 @@ export default function AnalyticsPage() {
                   <BarChart data={weekly}>
                     <XAxis
                       dataKey="dayLabel"
-                      stroke="hsl(var(--muted-foreground))"
+                      stroke="var(--muted-foreground)"
                       fontSize={12}
                       tickLine={false}
                       axisLine={false}
                     />
                     <YAxis
-                      stroke="hsl(var(--muted-foreground))"
+                      stroke="var(--muted-foreground)"
                       fontSize={12}
                       tickLine={false}
                       axisLine={false}
@@ -176,7 +176,7 @@ export default function AnalyticsPage() {
                     />
                     <Bar
                       dataKey="completed"
-                      fill="hsl(var(--foreground))"
+                      fill="var(--primary)"
                       radius={[4, 4, 0, 0]}
                       maxBarSize={40}
                     />

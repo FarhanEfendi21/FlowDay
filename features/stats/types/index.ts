@@ -51,14 +51,14 @@ export interface DashboardSummary {
 
 // ─── Mappers ──────────────────────────────────────────────────
 import { format } from 'date-fns'
-import { id as localeId } from 'date-fns/locale'
+import { id } from 'date-fns/locale/id'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapDailyTaskStat(row: any): DailyTaskStat {
   const date = new Date(row.stat_date)
   return {
     date:      format(date, 'yyyy-MM-dd'),
-    dayLabel:  format(date, 'EEE', { locale: localeId }),
+    dayLabel:  format(date, 'EEE', { locale: id }),
     completed: Number(row.completed ?? 0),
     created:   Number(row.created   ?? 0),
   }
