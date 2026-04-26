@@ -42,7 +42,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
-            <Logo size={40} textClassName="text-xl font-semibold tracking-tight" />
+            <Logo size={40} showText={false} />
           </Link>
         </div>
 
@@ -50,7 +50,7 @@ export default function LoginPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-xl">Selamat Datang Kembali</CardTitle>
             <CardDescription>
-              Masuk ke akun FlowDay kamu
+              Masuk ke akun kamu
             </CardDescription>
           </CardHeader>
           <CardContent>

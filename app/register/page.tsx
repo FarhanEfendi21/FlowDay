@@ -61,7 +61,7 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
-            <Logo size={40} textClassName="text-xl font-semibold tracking-tight" />
+            <Logo size={40} showText={false} />
           </Link>
         </div>
 
@@ -69,7 +69,7 @@ export default function RegisterPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-xl">Buat Akun Baru</CardTitle>
             <CardDescription>
-              Mulai kelola tugas dan habitmu dengan FlowDay
+              Mulai kelola tugas dan habitmu
             </CardDescription>
           </CardHeader>
           <CardContent>
