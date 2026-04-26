@@ -48,7 +48,7 @@ function assertRow<T>(
 
 // ─── SELECT column list (reusable) ───────────────────────────
 const TASK_COLUMNS =
-  'id, user_id, title, description, subject, priority, status, due_date, created_at, updated_at'
+  'id, user_id, title, description, subject, priority, status, due_date, created_at, updated_at, deleted_at'
 
 // ─── getTasks ────────────────────────────────────────────────
 /**
@@ -56,8 +56,9 @@ const TASK_COLUMNS =
  *
  * Fitur:
  * - Sort by due_date ASC (deadline terdekat dulu)
- * - Filter by subject, subjects[], status, priority, dateRange
+ * - Filter by subject, subjects[], status, priority, dateRange, search
  * - Limit hasil
+ * - Soft delete support (default: exclude deleted)
  */
 export async function getTasks(filter: GetTasksFilter = {}): Promise<Task[]> {
   const supabase = getClient()
@@ -66,10 +67,19 @@ export async function getTasks(filter: GetTasksFilter = {}): Promise<Task[]> {
   let query = supabase
     .from('tasks')
     .select(TASK_COLUMNS)
-    // ── Primary sort: deadline terdekat dulu ───────────────
-    .order('due_date', { ascending: filter.order !== 'desc' })
-    // ── Secondary sort: priority (high > medium > low) ─────
-    .order('priority', { ascending: false })
+
+  // ── Filter: soft delete (default: hanya tampilkan yang tidak dihapus) ───
+  if (!filter.includeDeleted) {
+    query = query.is('deleted_at', null)
+  } else {
+    // Jika includeDeleted = true, hanya tampilkan yang dihapus
+    query = query.not('deleted_at', 'is', null)
+  }
+
+  // ── Primary sort: deadline terdekat dulu ───────────────
+  query = query.order('due_date', { ascending: filter.order !== 'desc' })
+  // ── Secondary sort: priority (high > medium > low) ─────
+  query = query.order('priority', { ascending: false })
 
   // ── Filter: single subject ────────────────────────────────
   if (filter.subject && filter.subject !== 'all') {
@@ -89,6 +99,12 @@ export async function getTasks(filter: GetTasksFilter = {}): Promise<Task[]> {
   // ── Filter: priority ──────────────────────────────────────
   if (filter.priority) {
     query = query.eq('priority', filter.priority)
+  }
+
+  // ── Filter: search (title atau description) ───────────────
+  if (filter.search && filter.search.trim()) {
+    const searchTerm = `%${filter.search.trim()}%`
+    query = query.or(`title.ilike.${searchTerm},description.ilike.${searchTerm}`)
   }
 
   // ── Filter: date range ────────────────────────────────────
@@ -202,10 +218,47 @@ export async function updateTask(id: string, input: UpdateTaskInput): Promise<Ta
 }
 
 // ─── deleteTask ──────────────────────────────────────────────
+/**
+ * Soft delete task (set deleted_at = NOW())
+ */
 export async function deleteTask(id: string): Promise<void> {
   const supabase = getClient()
-  const { error } = await supabase.from('tasks').delete().eq('id', id)
+  const { error } = await supabase
+    .from('tasks')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
   if (error) throw new ServiceError(`[deleteTask] ${error.message}`, error)
+}
+
+// ─── restoreTask ─────────────────────────────────────────────
+/**
+ * Restore task dari trash (set deleted_at = NULL)
+ */
+export async function restoreTask(id: string): Promise<void> {
+  const supabase = getClient()
+  const { error } = await supabase
+    .from('tasks')
+    .update({ deleted_at: null })
+    .eq('id', id)
+  if (error) throw new ServiceError(`[restoreTask] ${error.message}`, error)
+}
+
+// ─── permanentDeleteTask ─────────────────────────────────────
+/**
+ * Permanent delete task (hard delete dari database)
+ */
+export async function permanentDeleteTask(id: string): Promise<void> {
+  const supabase = getClient()
+  const { error } = await supabase.from('tasks').delete().eq('id', id)
+  if (error) throw new ServiceError(`[permanentDeleteTask] ${error.message}`, error)
+}
+
+// ─── getDeletedTasks ─────────────────────────────────────────
+/**
+ * Fetch tasks yang sudah dihapus (untuk trash page)
+ */
+export async function getDeletedTasks(): Promise<Task[]> {
+  return getTasks({ includeDeleted: true, order: 'desc' })
 }
 
 // ─── toggleTaskStatus ────────────────────────────────────────

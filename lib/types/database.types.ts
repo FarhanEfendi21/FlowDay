@@ -42,6 +42,7 @@ export interface Database {
           due_date:    string
           created_at:  string
           updated_at:  string
+          deleted_at:  string | null
         }
         Insert: {
           id?:          string
@@ -54,6 +55,7 @@ export interface Database {
           due_date:     string
           created_at?:  string
           updated_at?:  string
+          deleted_at?:  string | null
         }
         Update: {
           title?:       string
@@ -63,6 +65,7 @@ export interface Database {
           status?:      TaskStatus
           due_date?:    string
           updated_at?:  string
+          deleted_at?:  string | null
         }
       }
       habits: {
@@ -73,6 +76,7 @@ export interface Database {
           current_streak: number
           created_at:     string
           updated_at:     string
+          deleted_at:     string | null
         }
         Insert: {
           id?:             string
@@ -81,11 +85,13 @@ export interface Database {
           current_streak?: number
           created_at?:     string
           updated_at?:     string
+          deleted_at?:     string | null
         }
         Update: {
           title?:          string
           current_streak?: number
           updated_at?:     string
+          deleted_at?:     string | null
         }
       }
       habit_logs: {

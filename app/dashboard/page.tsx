@@ -107,7 +107,11 @@ export default function DashboardPage() {
             {loadingWeekly ? (
               <div className="flex items-end gap-2 h-32">
                 {Array.from({ length: 7 }).map((_, i) => (
-                  <Skeleton key={i} className="flex-1 rounded" style={{ height: `${40 + Math.random() * 60}%` }} />
+                  <Skeleton 
+                    key={i} 
+                    className="flex-1 rounded" 
+                    style={{ height: `${40 + (i * 8)}%` }} 
+                  />
                 ))}
               </div>
             ) : weekly && weekly.length > 0 ? (

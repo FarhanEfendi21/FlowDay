@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Logo } from "@/components/logo"
 import { signUp } from "@/features/auth"
 
 export default function RegisterPage() {
@@ -36,10 +37,11 @@ export default function RegisterPage() {
 
     try {
       await signUp({ name, email, password })
-      // If email confirmation is enabled in Supabase, user needs to verify
-      // If auto-confirm is on, they get a session immediately
-      router.push("/dashboard")
-      router.refresh()
+      // After successful registration, redirect to login page
+      setSuccess("Registrasi berhasil! Silakan login dengan akun Anda.")
+      setTimeout(() => {
+        router.push("/login")
+      }, 1500)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Registrasi gagal, coba lagi"
       // Supabase may require email verification
@@ -59,10 +61,7 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-foreground">
-              <span className="text-lg font-bold text-background">F</span>
-            </div>
-            <span className="text-xl font-semibold tracking-tight">FlowDay</span>
+            <Logo size={40} textClassName="text-xl font-semibold tracking-tight" />
           </Link>
         </div>
 

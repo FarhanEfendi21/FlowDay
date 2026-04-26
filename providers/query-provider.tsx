@@ -35,7 +35,7 @@ function buildQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime:            1000 * 30,           // 30 s
+        staleTime:            1000 * 10,           // 10s (reduced from 30s for faster updates)
         gcTime:               1000 * 60 * 60 * 24, // 24 h (PWA offline)
         retry:                1,
         refetchOnWindowFocus: false,
@@ -59,6 +59,8 @@ function buildQueryClient(): QueryClient {
  * • `key` prop on PersistQueryClientProvider forces full remount on user switch,
  *   so NO React state, NO subscriptions, NO stale closures survive.
  * • persister is memoised on userId → stable reference per session.
+ * 
+ * PERFORMANCE: Don't block render while auth resolves - show loading state instead
  */
 export function QueryProvider({ children }: QueryProviderProps) {
   // null  = unauthenticated
@@ -118,17 +120,14 @@ export function QueryProvider({ children }: QueryProviderProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Wait until we know who the user is ───────────────────────
-  // Prevents flash of any cached data while session resolves.
-  if (userId === '') return null
-
-  // ── Stable persister scoped to current userId ─────────────────
-  // Defined outside JSX but re-computed only when userId changes.
+  // ── Render immediately with loading state - don't block! ─────
+  // This prevents blank screen while auth resolves
   return (
     <Inner
-      key={userId ?? 'anon'}    // ← hard remount on every user switch
-      userId={userId}
+      key={userId === '' ? 'loading' : (userId ?? 'anon')}
+      userId={userId === '' ? null : userId}
       queryClient={queryClient}
+      isLoading={userId === ''}
     >
       {children}
     </Inner>
@@ -140,10 +139,12 @@ function Inner({
   children,
   userId,
   queryClient,
+  isLoading,
 }: {
   children: ReactNode
   userId: string | null
   queryClient: QueryClient
+  isLoading?: boolean
 }) {
   const persister = useMemo(
     () =>
@@ -154,6 +155,15 @@ function Inner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [userId],
   )
+
+  // Show loading state while auth resolves - don't block render
+  if (isLoading) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    )
+  }
 
   return (
     <PersistQueryClientProvider

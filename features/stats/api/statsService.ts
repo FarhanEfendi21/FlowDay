@@ -34,18 +34,37 @@ class ServiceError extends Error {
   }
 }
 
+// ─── Cache User ID ────────────────────────────────────────────
+// Cache user ID untuk menghindari multiple auth.getUser() calls
+let cachedUserId: string | null = null
+let cacheTimestamp: number = 0
+const CACHE_DURATION = 5000 // 5 seconds
+
 // ─── getCurrentUserId ─────────────────────────────────────────
 /**
  * Helper untuk mendapatkan ID user yang sedang login.
  * Melempar error jika session tidak ditemukan.
+ * OPTIMIZED: Cache user ID untuk 5 detik untuk menghindari multiple calls
  */
 async function getCurrentUserId(): Promise<string> {
+  const now = Date.now()
+  
+  // Return cached user ID if still valid
+  if (cachedUserId && (now - cacheTimestamp) < CACHE_DURATION) {
+    return cachedUserId
+  }
+  
   const supabase = getClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   
   if (error || !user) {
     throw new ServiceError('[stats] User not authenticated')
   }
+  
+  // Cache the user ID
+  cachedUserId = user.id
+  cacheTimestamp = now
+  
   return user.id
 }
 

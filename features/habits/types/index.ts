@@ -22,6 +22,7 @@ export interface Habit {
   currentStreak: number
   createdAt:     string
   updatedAt:     string
+  deletedAt:     string | null
 }
 
 /** Habit enriched with recent 7-day logs */
@@ -47,6 +48,7 @@ export function mapHabitRow(row: HabitRow): Habit {
     currentStreak: row.current_streak,
     createdAt:     row.created_at,
     updatedAt:     row.updated_at,
+    deletedAt:     row.deleted_at ?? null,
   }
 }
 

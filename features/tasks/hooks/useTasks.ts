@@ -17,6 +17,9 @@ import {
   toggleTaskStatus,
   getUpcomingTasks,
   getOverdueTasks,
+  restoreTask,
+  permanentDeleteTask,
+  getDeletedTasks,
 } from '@/features/tasks/api/taskService'
 import type {
   Task,
@@ -31,6 +34,7 @@ export const taskKeys = {
   list:     (filter: GetTasksFilter)=> ['tasks', 'list', filter] as const,
   upcoming: ()                      => ['tasks', 'upcoming']   as const,
   overdue:  ()                      => ['tasks', 'overdue']    as const,
+  deleted:  ()                      => ['tasks', 'deleted']    as const,
   detail:   (id: string)            => ['tasks', 'detail', id] as const,
 } as const
 
@@ -94,11 +98,50 @@ export function useUpdateTask() {
 }
 
 // ─── useDeleteTask ───────────────────────────────────────────
+/**
+ * Soft delete task (pindah ke trash)
+ */
 export function useDeleteTask() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, string>({
     mutationFn: deleteTask,
     onSuccess:  () => invalidateAll(queryClient),
+  })
+}
+
+// ─── useRestoreTask ──────────────────────────────────────────
+/**
+ * Restore task dari trash
+ */
+export function useRestoreTask() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, string>({
+    mutationFn: restoreTask,
+    onSuccess:  () => invalidateAll(queryClient),
+  })
+}
+
+// ─── usePermanentDeleteTask ──────────────────────────────────
+/**
+ * Permanent delete task (hard delete)
+ */
+export function usePermanentDeleteTask() {
+  const queryClient = useQueryClient()
+  return useMutation<void, Error, string>({
+    mutationFn: permanentDeleteTask,
+    onSuccess:  () => invalidateAll(queryClient),
+  })
+}
+
+// ─── useDeletedTasks ─────────────────────────────────────────
+/**
+ * Fetch tasks yang sudah dihapus (untuk trash page)
+ */
+export function useDeletedTasks() {
+  return useQuery<Task[], Error>({
+    queryKey: taskKeys.deleted(),
+    queryFn:  getDeletedTasks,
+    staleTime: 30 * 1000,
   })
 }
 

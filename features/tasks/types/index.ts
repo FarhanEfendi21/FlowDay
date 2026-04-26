@@ -20,6 +20,7 @@ export interface Task {
   dueDate:     string   // 'YYYY-MM-DD'
   createdAt:   string
   updatedAt:   string
+  deletedAt:   string | null
 }
 
 // ─── Advanced Filter / Query Options ──────────────────────────
@@ -38,6 +39,10 @@ export interface GetTasksFilter {
   order?:      'asc' | 'desc'
   /** Max results to return */
   limit?:      number
+  /** Search keyword untuk title atau description */
+  search?:     string
+  /** Include deleted tasks (untuk trash page) */
+  includeDeleted?: boolean
 }
 
 // ─── Zod Schemas ──────────────────────────────────────────────
@@ -70,6 +75,7 @@ export function mapTaskRow(row: TaskRow): Task {
     dueDate:     row.due_date,
     createdAt:   row.created_at,
     updatedAt:   row.updated_at,
+    deletedAt:   row.deleted_at,
   }
 }
 

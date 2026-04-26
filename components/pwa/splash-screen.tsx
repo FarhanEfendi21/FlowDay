@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
+import { Logo } from "@/components/logo"
 
 export function SplashScreen() {
   const [isVisible, setIsVisible] = useState(false)
@@ -20,9 +21,9 @@ export function SplashScreen() {
     setIsVisible(true)
     sessionStorage.setItem("flowday-splash-shown", "true")
 
-    // Show for 1.5s then fade out
-    const fadeTimer = setTimeout(() => setIsFadingOut(true), 1500)
-    const removeTimer = setTimeout(() => setIsVisible(false), 1900)
+    // Show for 0.6s then fade out (reduced from 1.5s for better performance)
+    const fadeTimer = setTimeout(() => setIsFadingOut(true), 600)
+    const removeTimer = setTimeout(() => setIsVisible(false), 900)
 
     return () => {
       clearTimeout(fadeTimer)
@@ -40,10 +41,8 @@ export function SplashScreen() {
       )}
     >
       <div className="flex flex-col items-center gap-6">
-        {/* Simple Logo */}
-        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-foreground">
-          <span className="text-3xl font-bold text-background">F</span>
-        </div>
+        {/* Logo */}
+        <Logo size={64} showText={false} />
         
         {/* App Name */}
         <h1 className="text-2xl font-bold tracking-tight text-foreground">

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Logo } from "@/components/logo"
 import { signIn } from "@/features/auth"
 
 export default function LoginPage() {
@@ -41,10 +42,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-foreground">
-              <span className="text-lg font-bold text-background">F</span>
-            </div>
-            <span className="text-xl font-semibold tracking-tight">FlowDay</span>
+            <Logo size={40} textClassName="text-xl font-semibold tracking-tight" />
           </Link>
         </div>
 

@@ -27,7 +27,6 @@ import {
   Plus,
   X,
   LogOut,
-  Trash2,
 } from "lucide-react"
 import { useAuth, signOut, clearClientCache } from "@/features/auth"
 import { createClient } from "@/lib/supabase/client"
@@ -265,30 +264,16 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Danger Zone */}
-      <Card className="border-destructive/50">
+      {/* Account Actions */}
+      <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Trash2 className="h-5 w-5 text-destructive" />
-            <CardTitle className="text-base font-medium text-destructive">
-              Zona Berbahaya
-            </CardTitle>
+            <LogOut className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="text-base font-medium">Akun</CardTitle>
           </div>
-          <CardDescription>Aksi yang tidak dapat dibatalkan</CardDescription>
+          <CardDescription>Kelola akun FlowDay kamu</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Hapus Semua Data</p>
-              <p className="text-sm text-muted-foreground">
-                Menghapus semua tugas, habit, dan pengaturan
-              </p>
-            </div>
-            <Button variant="destructive" size="sm">
-              Hapus Data
-            </Button>
-          </div>
-          <Separator />
+        <CardContent>
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Logout</p>

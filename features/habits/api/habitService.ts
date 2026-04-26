@@ -51,9 +51,11 @@ export async function getHabits(): Promise<HabitWithLogs[]> {
   const weekAgo = format(new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd')
 
   // Primary: Fetch habits WITHOUT inner join (so habits with no logs still appear)
+  // Filter out soft-deleted habits
   const { data: habitsData, error: habitsError } = await supabase
     .from('habits')
-    .select('id, user_id, title, current_streak, created_at, updated_at')
+    .select('id, user_id, title, current_streak, created_at, updated_at, deleted_at')
+    .is('deleted_at', null)
     .order('created_at', { ascending: true })
 
   if (habitsError) throw new ServiceError(`[getHabits] ${habitsError.message}`, habitsError)
@@ -116,11 +118,45 @@ export async function createHabit(input: CreateHabitInput): Promise<Habit> {
   return mapHabitRow(assertRow(data, error, 'createHabit'))
 }
 
-// ─── deleteHabit ─────────────────────────────────────────────
+// ─── deleteHabit (soft delete) ───────────────────────────────
 export async function deleteHabit(id: string): Promise<void> {
   const supabase = getClient()
-  const { error } = await supabase.from('habits').delete().eq('id', id)
+  const { error } = await supabase
+    .from('habits')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
   if (error) throw new ServiceError(`[deleteHabit] ${error.message}`, error)
+}
+
+// ─── getDeletedHabits ────────────────────────────────────────
+export async function getDeletedHabits(): Promise<Habit[]> {
+  const supabase = getClient()
+  const { data, error } = await supabase
+    .from('habits')
+    .select('id, user_id, title, current_streak, created_at, updated_at, deleted_at')
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false })
+
+  if (error) throw new ServiceError(`[getDeletedHabits] ${error.message}`, error)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map(mapHabitRow)
+}
+
+// ─── restoreHabit ────────────────────────────────────────────
+export async function restoreHabit(id: string): Promise<void> {
+  const supabase = getClient()
+  const { error } = await supabase
+    .from('habits')
+    .update({ deleted_at: null })
+    .eq('id', id)
+  if (error) throw new ServiceError(`[restoreHabit] ${error.message}`, error)
+}
+
+// ─── permanentDeleteHabit ────────────────────────────────────
+export async function permanentDeleteHabit(id: string): Promise<void> {
+  const supabase = getClient()
+  const { error } = await supabase.from('habits').delete().eq('id', id)
+  if (error) throw new ServiceError(`[permanentDeleteHabit] ${error.message}`, error)
 }
 
 // ─── toggleHabit ─────────────────────────────────────────────

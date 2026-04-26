@@ -16,6 +16,9 @@ import {
   createHabit,
   deleteHabit,
   toggleHabit,
+  getDeletedHabits,
+  restoreHabit,
+  permanentDeleteHabit,
 } from '@/features/habits/api/habitService'
 import type {
   HabitWithLogs,
@@ -26,8 +29,9 @@ import { format } from 'date-fns'
 
 // ─── Query Keys ──────────────────────────────────────────────
 export const habitKeys = {
-  all:  () => ['habits']        as const,
-  list: () => ['habits', 'list'] as const,
+  all:     () => ['habits']              as const,
+  list:    () => ['habits', 'list']      as const,
+  deleted: () => ['habits', 'deleted']   as const,
 }
 
 // ─── useGetHabits ────────────────────────────────────────────
@@ -129,6 +133,44 @@ export function useToggleHabit() {
     },
 
     onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.all() })
+      queryClient.invalidateQueries({ queryKey: ['stats'] })
+    },
+  })
+}
+
+// ─── useGetDeletedHabits ─────────────────────────────────────
+export function useGetDeletedHabits(
+  options?: Omit<UseQueryOptions<Habit[], Error>, 'queryKey' | 'queryFn'>
+) {
+  return useQuery<Habit[], Error>({
+    queryKey: habitKeys.deleted(),
+    queryFn:  getDeletedHabits,
+    staleTime: 1000 * 30, // 30s cache
+    ...options,
+  })
+}
+
+// ─── useRestoreHabit ─────────────────────────────────────────
+export function useRestoreHabit() {
+  const queryClient = useQueryClient()
+
+  return useMutation<void, Error, string>({
+    mutationFn: restoreHabit,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.all() })
+      queryClient.invalidateQueries({ queryKey: ['stats'] })
+    },
+  })
+}
+
+// ─── usePermanentDeleteHabit ─────────────────────────────────
+export function usePermanentDeleteHabit() {
+  const queryClient = useQueryClient()
+
+  return useMutation<void, Error, string>({
+    mutationFn: permanentDeleteHabit,
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.all() })
       queryClient.invalidateQueries({ queryKey: ['stats'] })
     },

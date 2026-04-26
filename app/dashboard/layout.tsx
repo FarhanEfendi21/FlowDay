@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Logo } from "@/components/logo"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +21,6 @@ import {
   Flame,
   BarChart3,
   Settings,
-  Search,
   Moon,
   Sun,
   Menu,
@@ -99,10 +99,7 @@ export default function DashboardLayout({
           {/* Logo */}
           <div className="flex h-16 items-center justify-between border-b border-border px-6">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground">
-                <span className="text-sm font-bold text-background">F</span>
-              </div>
-              <span className="text-lg font-semibold tracking-tight">FlowDay</span>
+              <Logo size={32} showText={false} />
             </Link>
             <Button
               variant="ghost"
@@ -170,13 +167,6 @@ export default function DashboardLayout({
               >
                 <Menu className="h-5 w-5" />
               </Button>
-              <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Cari tugas..."
-                  className="w-64 pl-9"
-                />
-              </div>
             </div>
             <div className="flex items-center gap-2">
               <Button

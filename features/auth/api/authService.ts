@@ -56,7 +56,7 @@ export async function signIn(input: SignInInput): Promise<AuthResult> {
 }
 
 // ─── signUp ──────────────────────────────────────────────────
-export async function signUp(input: SignUpInput): Promise<AuthResult> {
+export async function signUp(input: SignUpInput): Promise<void> {
   const parsed = signUpSchema.safeParse(input)
   if (!parsed.success) {
     throw new AuthError(parsed.error.errors[0].message)
@@ -68,13 +68,18 @@ export async function signUp(input: SignUpInput): Promise<AuthResult> {
     password: parsed.data.password,
     options: {
       data: { name: parsed.data.name },
+      // Disable auto-confirm to force email verification
+      emailRedirectTo: `${window.location.origin}/auth/callback`,
     },
   })
 
   if (error) throw new AuthError(error.message)
-  if (!data.user || !data.session) throw new AuthError('Registrasi berhasil, cek email untuk verifikasi')
-
-  return { user: data.user, session: data.session }
+  
+  // Always sign out after registration to prevent auto-login
+  await supabase.auth.signOut()
+  
+  // Don't return session - force user to login manually
+  if (!data.user) throw new AuthError('Registrasi gagal, coba lagi')
 }
 
 // ─── clearClientCache ─────────────────────────────────────────

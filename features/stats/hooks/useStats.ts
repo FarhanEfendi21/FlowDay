@@ -31,39 +31,39 @@ export const statsKeys = {
 // ─── useWeeklyTaskStats ───────────────────────────────────────
 /**
  * Progress mingguan: jumlah task selesai per hari (7 hari).
- * staleTime: 5 menit — data ini cukup stabil.
+ * staleTime: 30s (reduced from 5min for faster updates)
  */
 export function useWeeklyTaskStats() {
   return useQuery<DailyTaskStat[], Error>({
     queryKey: statsKeys.weekly,
     queryFn:  getWeeklyTaskStats,
-    staleTime: 5 * 60 * 1000, // 5 menit
+    staleTime: 30 * 1000, // 30 detik
   })
 }
 
 // ─── useSubjectTaskStats ──────────────────────────────────────
 /**
  * Breakdown tugas per mata kuliah.
- * staleTime: 5 menit — hanya berubah saat ada add/delete task.
+ * staleTime: 30s (reduced from 5min for faster updates)
  */
 export function useSubjectTaskStats() {
   return useQuery<SubjectTaskStat[], Error>({
     queryKey: statsKeys.subjects,
     queryFn:  getSubjectTaskStats,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 30 * 1000, // 30 detik
   })
 }
 
 // ─── useHabitStats ────────────────────────────────────────────
 /**
  * Streak & completion rate per habit.
- * staleTime: 2 menit — streak bisa berubah lebih sering.
+ * staleTime: 30s (reduced from 2min for faster updates)
  */
 export function useHabitStats() {
   return useQuery<HabitStat[], Error>({
     queryKey: statsKeys.habits,
     queryFn:  getHabitStats,
-    staleTime: 2 * 60 * 1000, // 2 menit
+    staleTime: 30 * 1000, // 30 detik
   })
 }
 
@@ -73,13 +73,13 @@ export function useHabitStats() {
  * Menggantikan useStore().tasks + habits.reduce() yang
  * bergantung pada local state.
  *
- * staleTime: 1 menit — karena ini overview utama.
+ * staleTime: 30s (reduced from 1min for faster updates)
  */
 export function useDashboardSummary() {
   return useQuery<DashboardSummary, Error>({
     queryKey: statsKeys.dashboard,
     queryFn:  getDashboardSummary,
-    staleTime: 1 * 60 * 1000, // 1 menit
+    staleTime: 30 * 1000, // 30 detik
   })
 }
 
