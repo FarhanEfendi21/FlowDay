@@ -64,6 +64,7 @@ import { toast } from "sonner"
 export default function TasksPage() {
   const [filterSubject, setFilterSubject] = useState<string>("all")
   const [filterStatus, setFilterStatus]   = useState<string>("all")
+  const [searchQuery, setSearchQuery]     = useState<string>("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingTask, setEditingTask]     = useState<Task | null>(null)
   const [showTrash, setShowTrash]         = useState(false)
@@ -87,13 +88,22 @@ export default function TasksPage() {
       .filter((task) => {
         if (filterSubject !== "all" && task.subject !== filterSubject) return false
         if (filterStatus  !== "all" && task.status  !== filterStatus)  return false
+        
+        // Search filter (case-insensitive)
+        if (searchQuery.trim()) {
+          const query = searchQuery.toLowerCase()
+          const matchesTitle = task.title.toLowerCase().includes(query)
+          const matchesDescription = task.description?.toLowerCase().includes(query) ?? false
+          if (!matchesTitle && !matchesDescription) return false
+        }
+        
         return true
       })
       .sort((a, b) => {
         if (a.status !== b.status) return a.status === "todo" ? -1 : 1
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
       })
-  }, [tasks, filterSubject, filterStatus])
+  }, [tasks, filterSubject, filterStatus, searchQuery])
 
   const todoTasks = filteredTasks.filter((t) => t.status === "todo")
   const doneTasks = filteredTasks.filter((t) => t.status === "done")
@@ -213,6 +223,13 @@ export default function TasksPage() {
       {/* Filters - Only show when not in trash view */}
       {!showTrash && (
         <div className="flex flex-wrap gap-3">
+        <Input
+          type="text"
+          placeholder="Cari..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full sm:w-[200px]"
+        />
         <Select value={filterSubject} onValueChange={setFilterSubject}>
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Mata Kuliah" />
@@ -258,16 +275,52 @@ export default function TasksPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-2">
-              {deletedTasks.map((task) => (
-                <TrashTaskCard
-                  key={task.id}
-                  task={task}
-                  onRestore={() => handleRestore(task.id)}
-                  onPermanentDelete={() => handlePermanentDelete(task.id)}
+            <>
+              <div className="flex flex-wrap gap-3">
+                <Input
+                  type="text"
+                  placeholder="Cari..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full sm:w-[200px]"
                 />
-              ))}
-            </div>
+              </div>
+              <div className="space-y-2">
+                {deletedTasks
+                  .filter((task) => {
+                    if (!searchQuery.trim()) return true
+                    const query = searchQuery.toLowerCase()
+                    const matchesTitle = task.title.toLowerCase().includes(query)
+                    const matchesDescription = task.description?.toLowerCase().includes(query) ?? false
+                    return matchesTitle || matchesDescription
+                  })
+                  .map((task) => (
+                    <TrashTaskCard
+                      key={task.id}
+                      task={task}
+                      onRestore={() => handleRestore(task.id)}
+                      onPermanentDelete={() => handlePermanentDelete(task.id)}
+                    />
+                  ))}
+              </div>
+              {deletedTasks.filter((task) => {
+                if (!searchQuery.trim()) return true
+                const query = searchQuery.toLowerCase()
+                const matchesTitle = task.title.toLowerCase().includes(query)
+                const matchesDescription = task.description?.toLowerCase().includes(query) ?? false
+                return matchesTitle || matchesDescription
+              }).length === 0 && (
+                <Card>
+                  <CardContent className="py-16">
+                    <Empty>
+                      <EmptyMedia variant="icon"><Trash2 /></EmptyMedia>
+                      <EmptyTitle>Tidak ada hasil</EmptyTitle>
+                      <EmptyDescription>Tidak ada tugas yang dihapus sesuai pencarian "{searchQuery}"</EmptyDescription>
+                    </Empty>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </>
       ) : (

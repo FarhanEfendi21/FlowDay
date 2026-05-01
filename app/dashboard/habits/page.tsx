@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import {
   useGetHabits,
   useCreateHabit,
@@ -47,6 +47,7 @@ import { toast } from "sonner"
 export default function HabitsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [newHabitTitle, setNewHabitTitle]     = useState("")
+  const [searchQuery, setSearchQuery]         = useState("")
   const [showTrash, setShowTrash]             = useState(false)
 
   // ── React Query hooks ─────────────────────────────────────
@@ -71,9 +72,26 @@ export default function HabitsPage() {
     }
   })
 
+  // ── Filter habits by search query ─────────────────────────
+  const filteredHabits = useMemo(() => {
+    if (!searchQuery.trim()) return habits
+    const query = searchQuery.toLowerCase()
+    return habits.filter((habit) => 
+      habit.title.toLowerCase().includes(query)
+    )
+  }, [habits, searchQuery])
+
+  const filteredDeletedHabits = useMemo(() => {
+    if (!searchQuery.trim()) return deletedHabits
+    const query = searchQuery.toLowerCase()
+    return deletedHabits.filter((habit) => 
+      habit.title.toLowerCase().includes(query)
+    )
+  }, [deletedHabits, searchQuery])
+
   // ── Stats ─────────────────────────────────────────────────
-  const totalStreak         = habits.reduce((sum, h) => sum + h.currentStreak, 0)
-  const habitsCompletedToday = habits.filter((h) => h.isCompletedToday).length
+  const totalStreak         = filteredHabits.reduce((sum, h) => sum + h.currentStreak, 0)
+  const habitsCompletedToday = filteredHabits.filter((h) => h.isCompletedToday).length
 
   // ── Handlers ──────────────────────────────────────────────
   const handleAddHabit = (e: React.FormEvent) => {
@@ -186,6 +204,17 @@ export default function HabitsPage() {
         </div>
       </div>
 
+      {/* Search Input - Show in both active and trash views */}
+      <div className="flex flex-wrap gap-3">
+        <Input
+          type="text"
+          placeholder="Cari..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full sm:w-[200px]"
+        />
+      </div>
+
       {/* TRASH VIEW */}
       {showTrash && (
         <>
@@ -195,16 +224,20 @@ export default function HabitsPage() {
               Memuat trash...
             </div>
           )}
-          {!isLoadingDeleted && deletedHabits.length === 0 && (
+          {!isLoadingDeleted && filteredDeletedHabits.length === 0 && (
             <Empty>
               <EmptyMedia variant="icon"><Archive /></EmptyMedia>
-              <EmptyTitle>Trash kosong</EmptyTitle>
-              <EmptyDescription>Tidak ada habit yang dihapus.</EmptyDescription>
+              <EmptyTitle>{deletedHabits.length === 0 ? "Trash kosong" : "Tidak ada hasil"}</EmptyTitle>
+              <EmptyDescription>
+                {deletedHabits.length === 0 
+                  ? "Tidak ada habit yang dihapus." 
+                  : `Tidak ada habit yang dihapus sesuai pencarian "${searchQuery}"`}
+              </EmptyDescription>
             </Empty>
           )}
-          {!isLoadingDeleted && deletedHabits.length > 0 && (
+          {!isLoadingDeleted && filteredDeletedHabits.length > 0 && (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {deletedHabits.map((habit) => (
+              {filteredDeletedHabits.map((habit) => (
                 <Card key={habit.id} className="border-destructive/50">
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between">
@@ -287,7 +320,7 @@ export default function HabitsPage() {
                       </div>
                       <div>
                         <p className="text-2xl font-semibold">
-                          {habitsCompletedToday}/{habits.length}
+                          {habitsCompletedToday}/{filteredHabits.length}
                         </p>
                         <p className="text-sm text-muted-foreground">Selesai Hari Ini</p>
                       </div>
@@ -298,10 +331,10 @@ export default function HabitsPage() {
                   <CardContent className="p-5">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                        <span className="text-lg font-semibold">{habits.length}</span>
+                        <span className="text-lg font-semibold">{filteredHabits.length}</span>
                       </div>
                       <div>
-                        <p className="text-2xl font-semibold">{habits.length}</p>
+                        <p className="text-2xl font-semibold">{filteredHabits.length}</p>
                         <p className="text-sm text-muted-foreground">Total Habit</p>
                       </div>
                     </div>
@@ -315,7 +348,7 @@ export default function HabitsPage() {
                   <CardTitle className="text-base font-medium">Tracker Mingguan</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0 sm:p-6">
-                  {habits.length > 0 ? (
+                  {filteredHabits.length > 0 ? (
                     <div className="overflow-x-auto pb-4 sm:pb-0">
                       <div className="min-w-[600px] space-y-4 px-4 sm:px-0">
                         {/* Header Row */}
@@ -344,7 +377,7 @@ export default function HabitsPage() {
                         </div>
 
                         {/* Habit Rows */}
-                        {habits.map((habit) => (
+                        {filteredHabits.map((habit) => (
                           <div key={habit.id} className="flex items-center">
                             <div className="flex w-[140px] shrink-0 items-center gap-2 sm:w-[180px]">
                               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30 sm:h-8 sm:w-8">
@@ -399,8 +432,12 @@ export default function HabitsPage() {
                     <div className="p-6">
                       <Empty>
                         <EmptyMedia variant="icon"><Flame /></EmptyMedia>
-                        <EmptyTitle>Belum ada habit</EmptyTitle>
-                        <EmptyDescription>Tambah habit pertamamu untuk mulai tracking.</EmptyDescription>
+                        <EmptyTitle>{habits.length === 0 ? "Belum ada habit" : "Tidak ada hasil"}</EmptyTitle>
+                        <EmptyDescription>
+                          {habits.length === 0 
+                            ? "Tambah habit pertamamu untuk mulai tracking." 
+                            : `Tidak ada habit sesuai pencarian "${searchQuery}"`}
+                        </EmptyDescription>
                       </Empty>
                     </div>
                   )}
@@ -408,9 +445,9 @@ export default function HabitsPage() {
               </Card>
 
               {/* Habit Cards (Today's status) */}
-              {habits.length > 0 && (
+              {filteredHabits.length > 0 && (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {habits.map((habit) => (
+                  {filteredHabits.map((habit) => (
                     <Card key={habit.id}>
                       <CardContent className="p-5">
                         <div className="flex items-start justify-between">
