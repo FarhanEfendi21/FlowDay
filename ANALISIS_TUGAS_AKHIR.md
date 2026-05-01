@@ -64,20 +64,52 @@ Project FlowDay telah memenuhi **SEMUA** ketentuan Tugas Akhir praktikum dengan 
 
 **STATUS: MEMENUHI**
 
-**Aktor yang Teridentifikasi:**
+**Interpretasi 2 Aktor dalam FlowDay:**
 
-#### Aktor 1: **User/Mahasiswa** (auth.users)
-- Dapat membuat, membaca, update, delete tasks
-- Dapat membuat, membaca, update, delete habits
-- Dapat tracking habit logs
-- Dapat mengelola mata kuliah (subjects)
-- Dapat melihat analytics dan statistik
+Ada 2 cara valid untuk mendefinisikan 2 aktor dalam sistem ini:
 
-#### Aktor 2: **System/Admin** (Implicit via RLS & Functions)
-- Mengelola auto-trigger untuk profile creation
-- Menjalankan fungsi statistik server-side
-- Mengelola streak calculation otomatis
-- Mengelola Row Level Security policies
+#### **Opsi 1: User Mahasiswa & System (Recommended untuk Presentasi)**
+
+**Aktor 1: Mahasiswa/User** (auth.users)
+- Login dan registrasi ke sistem
+- Membuat, membaca, update, delete tasks
+- Membuat, membaca, update, delete habits
+- Tracking habit logs harian
+- Mengelola mata kuliah (subjects)
+- Melihat analytics dan statistik pribadi
+- Soft delete dan restore data
+- **Interaksi**: Langsung via UI web application
+
+**Aktor 2: System/Database** (Automated Processes)
+- Auto-create profile saat user registrasi (trigger)
+- Auto-calculate streak habits (trigger)
+- Auto-update timestamp (trigger)
+- Enforce Row Level Security (RLS policies)
+- Execute server-side functions (RPC)
+- Cascade delete related records
+- **Interaksi**: Otomatis via database triggers & functions
+
+#### **Opsi 2: Multiple User Roles (Alternatif)**
+
+Jika ingin lebih konkret dengan 2 user roles:
+
+**Aktor 1: Mahasiswa** (Regular User)
+- CRUD tasks dan habits
+- View own data only (via RLS)
+- Limited to personal workspace
+
+**Aktor 2: Admin/Dosen** (Potential Future Feature)
+- View all students' progress
+- Generate reports
+- Manage system settings
+- *Note: Belum diimplementasi, tapi bisa dijelaskan sebagai future enhancement*
+
+**💡 Rekomendasi untuk Presentasi:**
+Gunakan **Opsi 1** karena lebih sesuai dengan implementasi aktual. Jelaskan bahwa:
+- **Aktor 1 (Mahasiswa)** = User yang berinteraksi via UI
+- **Aktor 2 (System)** = Automated processes yang berjalan di background (triggers, functions, RLS)
+
+Ini adalah pendekatan yang valid dalam ERD modern, terutama untuk aplikasi dengan business logic di database layer.
 
 **ERD Struktur:**
 
