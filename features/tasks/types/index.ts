@@ -17,10 +17,18 @@ export interface Task {
   subject:     string
   priority:    TaskPriority
   status:      TaskStatus
-  dueDate:     string   // 'YYYY-MM-DD'
+  dueDate:     string   // ISO 8601 datetime: 'YYYY-MM-DDTHH:mm:ss.sssZ'
   createdAt:   string
   updatedAt:   string
   deletedAt:   string | null
+}
+
+// ─── Countdown Info ────────────────────────────────────────────
+export interface TaskWithCountdown extends Task {
+  isOverdue:        boolean
+  hoursRemaining:   number
+  minutesRemaining: number
+  daysRemaining:    number
 }
 
 // ─── Advanced Filter / Query Options ──────────────────────────
@@ -51,7 +59,8 @@ export const createTaskSchema = z.object({
   description: z.string().max(1000).optional(),
   subject:     z.string().min(1, 'Mata kuliah wajib diisi'),
   priority:    z.enum(['low', 'medium', 'high']).default('medium'),
-  dueDate:     z.string().min(1, 'Deadline wajib diisi'),
+  dueDate:     z.string().min(1, 'Deadline wajib diisi'), // ISO 8601 datetime string
+  dueTime:     z.string().optional(), // HH:mm format (optional, for UI convenience)
 })
 
 export const updateTaskSchema = createTaskSchema
@@ -100,3 +109,67 @@ export function startOfWeekISO(): string {
   d.setDate(diff)
   return d.toISOString().split('T')[0]
 }
+
+// ─── DateTime Helpers ──────────────────────────────────────────
+/** Combine date (YYYY-MM-DD) and time (HH:mm) into ISO datetime string */
+export function combineDateTimeISO(date: string, time: string): string {
+  return `${date}T${time}:00.000Z`
+}
+
+/** Extract date from ISO datetime string */
+export function extractDate(datetime: string): string {
+  return datetime.split('T')[0]
+}
+
+/** Extract time (HH:mm) from ISO datetime string */
+export function extractTime(datetime: string): string {
+  const time = datetime.split('T')[1]
+  if (!time) return '23:59'
+  return time.substring(0, 5) // HH:mm
+}
+
+/** Format datetime for display (e.g., "31 Des 2024, 23:59") */
+export function formatDeadline(datetime: string, locale: Locale = id): string {
+  const date = new Date(datetime)
+  return format(date, "d MMM yyyy, HH:mm", { locale })
+}
+
+/** Calculate countdown from now to deadline */
+export function calculateCountdown(deadline: string): {
+  isOverdue: boolean
+  days: number
+  hours: number
+  minutes: number
+  seconds: number
+  totalHours: number
+  totalMinutes: number
+} {
+  const now = new Date()
+  const target = new Date(deadline)
+  const diff = target.getTime() - now.getTime()
+  
+  const isOverdue = diff < 0
+  const absDiff = Math.abs(diff)
+  
+  const days = Math.floor(absDiff / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((absDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const minutes = Math.floor((absDiff % (1000 * 60 * 60)) / (1000 * 60))
+  const seconds = Math.floor((absDiff % (1000 * 60)) / 1000)
+  
+  const totalHours = Math.floor(absDiff / (1000 * 60 * 60))
+  const totalMinutes = Math.floor(absDiff / (1000 * 60))
+  
+  return {
+    isOverdue,
+    days,
+    hours,
+    minutes,
+    seconds,
+    totalHours,
+    totalMinutes,
+  }
+}
+
+import { format } from 'date-fns'
+import { id } from 'date-fns/locale'
+import type { Locale } from 'date-fns'

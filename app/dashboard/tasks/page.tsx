@@ -15,6 +15,9 @@ import {
   type TaskStatus,
   type CreateTaskInput,
   type UpdateTaskInput,
+  extractDate,
+  extractTime,
+  combineDateTimeISO,
 } from "@/features/tasks"
 import { useGetSubjectNames } from "@/features/subjects"
 import { Button } from "@/components/ui/button"
@@ -45,6 +48,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
+import { TimePicker } from "@/components/ui/time-picker"
+import { CountdownBadge } from "@/components/tasks/countdown-badge"
 import {
   Plus,
   MoreHorizontal,
@@ -55,6 +60,7 @@ import {
   Loader2,
   RotateCcw,
   Archive,
+  Clock,
 } from "lucide-react"
 import { format, isPast, isToday, isTomorrow } from "date-fns"
 import { id } from "date-fns/locale"
@@ -426,7 +432,7 @@ function TaskCard({
   onDelete: () => void
 }) {
   const dueDate  = new Date(task.dueDate)
-  const isOverdue = isPast(dueDate) && !isToday(dueDate) && task.status === "todo"
+  const isOverdue = isPast(dueDate) && task.status === "todo"
 
   const priorityColors: Record<TaskPriority, string> = {
     high:   "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
@@ -436,10 +442,6 @@ function TaskCard({
   const priorityLabels: Record<TaskPriority, string> = {
     high: "Tinggi", medium: "Sedang", low: "Rendah",
   }
-
-  let deadlineText = format(dueDate, "d MMM yyyy", { locale: id })
-  if (isToday(dueDate))    deadlineText = "Hari ini"
-  if (isTomorrow(dueDate)) deadlineText = "Besok"
 
   return (
     <Card className={task.status === "done" ? "opacity-60" : ""}>
@@ -465,9 +467,20 @@ function TaskCard({
                 <Badge className={`text-xs ${priorityColors[task.priority]}`}>
                   {priorityLabels[task.priority]}
                 </Badge>
-                <span className={`flex items-center gap-1 text-xs ${isOverdue ? "text-destructive" : "text-muted-foreground"}`}>
+                {/* Realtime Countdown Badge */}
+                <CountdownBadge 
+                  deadline={task.dueDate} 
+                  status={task.status}
+                  variant="default"
+                />
+                {/* Detailed datetime info */}
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Calendar className="h-3 w-3" />
-                  {deadlineText}
+                  {format(dueDate, "d MMM yyyy", { locale: id })}
+                </span>
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  {format(dueDate, "HH:mm")}
                 </span>
               </div>
             </div>
@@ -513,8 +526,13 @@ function TaskForm({
   const [status,      setStatus]      = useState<TaskStatus>(initialData?.status || "todo")
   const [dueDate,     setDueDate]     = useState(
     initialData?.dueDate
-      ? format(new Date(initialData.dueDate), "yyyy-MM-dd")
+      ? extractDate(initialData.dueDate)
       : format(new Date(), "yyyy-MM-dd")
+  )
+  const [dueTime,     setDueTime]     = useState(
+    initialData?.dueDate
+      ? extractTime(initialData.dueDate)
+      : "23:59"
   )
   const [subject, setSubject] = useState(initialData?.subject || subjects[0] || "")
 
@@ -522,12 +540,15 @@ function TaskForm({
     e.preventDefault()
     if (!title.trim()) return
 
+    // Combine date and time into ISO datetime string
+    const dueDatetime = combineDateTimeISO(dueDate, dueTime)
+
     if (initialData) {
       onEdit?.({
         title:       title.trim(),
         description: description.trim() || undefined,
         priority,
-        dueDate,
+        dueDate:     dueDatetime,
         subject,
         status,
       })
@@ -536,7 +557,7 @@ function TaskForm({
         title:       title.trim(),
         description: description.trim() || undefined,
         priority,
-        dueDate,
+        dueDate:     dueDatetime,
         subject,
       })
     }
@@ -596,7 +617,7 @@ function TaskForm({
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="task-dueDate">Deadline</Label>
+          <Label htmlFor="task-dueDate">Tanggal Deadline</Label>
           <Input
             id="task-dueDate"
             type="date"
@@ -605,21 +626,28 @@ function TaskForm({
             disabled={isLoading}
           />
         </div>
-        {initialData && (
-          <div className="space-y-2">
-            <Label htmlFor="task-status">Status</Label>
-            <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)} disabled={isLoading}>
-              <SelectTrigger id="task-status">
-                <SelectValue placeholder="Pilih status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todo">To Do</SelectItem>
-                <SelectItem value="done">Selesai</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+        <TimePicker
+          id="task-dueTime"
+          label="Waktu Deadline"
+          value={dueTime}
+          onChange={setDueTime}
+          disabled={isLoading}
+        />
       </div>
+      {initialData && (
+        <div className="space-y-2">
+          <Label htmlFor="task-status">Status</Label>
+          <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)} disabled={isLoading}>
+            <SelectTrigger id="task-status">
+              <SelectValue placeholder="Pilih status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todo">To Do</SelectItem>
+              <SelectItem value="done">Selesai</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {initialData ? "Simpan Perubahan" : "Tambah Tugas"}
