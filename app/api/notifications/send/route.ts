@@ -2,14 +2,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+export const dynamic = "force-dynamic"
 
 // Support both Legacy and HTTP v1 API
 const firebaseServerKey = process.env.FIREBASE_SERVER_KEY
 const firebaseServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 interface SendNotificationRequest {
   userId: string
@@ -21,6 +18,16 @@ interface SendNotificationRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.warn("Supabase credentials not found. Skipping execution.")
+      return NextResponse.json({ error: "Configuration missing" }, { status: 500 })
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    
     const body: SendNotificationRequest = await request.json()
     const { userId, title, body: notificationBody, type, data = {} } = body
 
