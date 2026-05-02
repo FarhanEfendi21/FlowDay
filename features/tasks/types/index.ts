@@ -111,21 +111,28 @@ export function startOfWeekISO(): string {
 }
 
 // ─── DateTime Helpers ──────────────────────────────────────────
-/** Combine date (YYYY-MM-DD) and time (HH:mm) into ISO datetime string */
+/** Combine date (YYYY-MM-DD) and time (HH:mm) into ISO datetime string (local timezone) */
 export function combineDateTimeISO(date: string, time: string): string {
-  return `${date}T${time}:00.000Z`
+  // Build a local datetime and convert to ISO — preserves user's timezone offset
+  const localDateTime = new Date(`${date}T${time}:00`)
+  return localDateTime.toISOString()
 }
 
-/** Extract date from ISO datetime string */
+/** Extract date (YYYY-MM-DD) from ISO datetime string — returns in LOCAL timezone */
 export function extractDate(datetime: string): string {
-  return datetime.split('T')[0]
+  const date = new Date(datetime)
+  const y = date.getFullYear()
+  const m = (date.getMonth() + 1).toString().padStart(2, '0')
+  const d = date.getDate().toString().padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
-/** Extract time (HH:mm) from ISO datetime string */
+/** Extract time (HH:mm) from ISO datetime string — returns in LOCAL timezone */
 export function extractTime(datetime: string): string {
-  const time = datetime.split('T')[1]
-  if (!time) return '23:59'
-  return time.substring(0, 5) // HH:mm
+  const date = new Date(datetime)
+  const h = date.getHours().toString().padStart(2, '0')
+  const m = date.getMinutes().toString().padStart(2, '0')
+  return `${h}:${m}`
 }
 
 /** Format datetime for display (e.g., "31 Des 2024, 23:59") */

@@ -27,9 +27,11 @@ import {
   Plus,
   X,
   LogOut,
+  RotateCcw,
 } from "lucide-react"
 import { useAuth, signOut, clearClientCache } from "@/features/auth"
 import { createClient } from "@/lib/supabase/client"
+import { useOnboarding } from "@/hooks/use-onboarding"
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
@@ -38,6 +40,7 @@ export default function SettingsPage() {
   const addSubjectMutation    = useAddSubject()
   const removeSubjectMutation = useRemoveSubject()
   const { user } = useAuth()
+  const { resetOnboarding } = useOnboarding()
   const [newSubject, setNewSubject] = useState("")
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -273,7 +276,25 @@ export default function SettingsPage() {
           </div>
           <CardDescription>Kelola akun FlowDay kamu</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Reset Onboarding</p>
+              <p className="text-sm text-muted-foreground">
+                Tampilkan tutorial awal lagi
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={resetOnboarding}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset
+            </Button>
+          </div>
+          <Separator />
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Logout</p>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import {
   useGetTasks,
   useCreateTask,
@@ -62,9 +62,10 @@ import {
   Archive,
   Clock,
 } from "lucide-react"
-import { format, isPast, isToday, isTomorrow } from "date-fns"
+import { format, isPast } from "date-fns"
 import { id } from "date-fns/locale"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 
 export default function TasksPage() {
@@ -228,7 +229,7 @@ export default function TasksPage() {
 
       {/* Filters - Only show when not in trash view */}
       {!showTrash && (
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
         <Input
           type="text"
           placeholder="Cari..."
@@ -237,7 +238,7 @@ export default function TasksPage() {
           className="w-full sm:w-[200px]"
         />
         <Select value={filterSubject} onValueChange={setFilterSubject}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="Mata Kuliah" />
           </SelectTrigger>
           <SelectContent>
@@ -250,7 +251,7 @@ export default function TasksPage() {
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-full sm:w-[140px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -282,7 +283,7 @@ export default function TasksPage() {
             </Card>
           ) : (
             <>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
                 <Input
                   type="text"
                   placeholder="Cari..."
@@ -407,6 +408,7 @@ export default function TasksPage() {
           </DialogHeader>
           {editingTask && (
             <TaskForm
+              key={editingTask.id}
               subjects={filterSubjects}
               initialData={editingTask}
               isLoading={updateTask.isPending}
@@ -444,27 +446,36 @@ function TaskCard({
   }
 
   return (
-    <Card className={task.status === "done" ? "opacity-60" : ""}>
-      <CardContent className="flex items-start gap-3 p-4">
+    <Card className={cn(
+      "relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.01]",
+      task.status === "done" ? "opacity-60" : "",
+      isOverdue && "border-destructive/50"
+    )}>
+      {/* Gradient Background for Overdue */}
+      {isOverdue && (
+        <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 to-transparent" />
+      )}
+      
+      <CardContent className="relative flex items-start gap-2 sm:gap-3 p-3 sm:p-4">
         <Checkbox
           checked={task.status === "done"}
           onCheckedChange={onToggle}
-          className="mt-1"
+          className="mt-1 shrink-0"
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <p className={`font-medium ${task.status === "done" ? "line-through text-muted-foreground" : ""}`}>
+              <p className={`font-medium text-sm sm:text-base ${task.status === "done" ? "line-through text-muted-foreground" : ""}`}>
                 {task.title}
               </p>
               {task.description && (
-                <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
+                <p className="mt-1 text-xs sm:text-sm text-muted-foreground line-clamp-2">
                   {task.description}
                 </p>
               )}
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="text-xs">{task.subject}</Badge>
-                <Badge className={`text-xs ${priorityColors[task.priority]}`}>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <Badge variant="secondary" className="text-[10px] sm:text-xs">{task.subject}</Badge>
+                <Badge className={`text-[10px] sm:text-xs ${priorityColors[task.priority]}`}>
                   {priorityLabels[task.priority]}
                 </Badge>
                 {/* Realtime Countdown Badge */}
@@ -473,20 +484,25 @@ function TaskCard({
                   status={task.status}
                   variant="default"
                 />
-                {/* Detailed datetime info */}
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                {/* Detailed datetime info - hidden on mobile */}
+                <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
                   <Calendar className="h-3 w-3" />
                   {format(dueDate, "d MMM yyyy", { locale: id })}
                 </span>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" />
                   {format(dueDate, "HH:mm")}
+                </span>
+                {/* Mobile: compact date/time */}
+                <span className="sm:hidden flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Calendar className="h-3 w-3" />
+                  {format(dueDate, "d MMM, HH:mm", { locale: id })}
                 </span>
               </div>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 shrink-0">
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -534,11 +550,25 @@ function TaskForm({
       ? extractTime(initialData.dueDate)
       : "23:59"
   )
-  const [subject, setSubject] = useState(initialData?.subject || subjects[0] || "")
+  const [subject, setSubject] = useState<string>(
+    initialData?.subject && subjects.includes(initialData.subject)
+      ? initialData.subject
+      : subjects[0] ?? ""
+  )
+
+  // Stable callback reference to prevent TimePicker's useEffect from
+  // re-running on every render (it depends on onChange in its dep array)
+  const handleDueTimeChange = useCallback((time: string) => {
+    setDueTime(time)
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
+    if (!subject) {
+      toast.error("Pilih mata kuliah terlebih dahulu")
+      return
+    }
 
     // Combine date and time into ISO datetime string
     const dueDatetime = combineDateTimeISO(dueDate, dueTime)
@@ -590,16 +620,25 @@ function TaskForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="task-subject">Mata Kuliah</Label>
-          <Select value={subject} onValueChange={setSubject} disabled={isLoading}>
+          <Select 
+            value={subject} 
+            onValueChange={setSubject} 
+            disabled={isLoading || subjects.length === 0}
+          >
             <SelectTrigger id="task-subject">
-              <SelectValue placeholder="Pilih mata kuliah" />
+              <SelectValue placeholder={subjects.length === 0 ? "Tidak ada mata kuliah" : "Pilih mata kuliah"} />
             </SelectTrigger>
             <SelectContent>
-              {subjects.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
+              {subjects.length > 0 ? (
+                subjects.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))
+              ) : (
+                <SelectItem value="placeholder" disabled>Tidak ada mata kuliah</SelectItem>
+              )}
             </SelectContent>
           </Select>
+
         </div>
         <div className="space-y-2">
           <Label htmlFor="task-priority">Prioritas</Label>
@@ -630,7 +669,7 @@ function TaskForm({
           id="task-dueTime"
           label="Waktu Deadline"
           value={dueTime}
-          onChange={setDueTime}
+          onChange={handleDueTimeChange}
           disabled={isLoading}
         />
       </div>

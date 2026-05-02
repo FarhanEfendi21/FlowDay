@@ -32,6 +32,8 @@ import { useTheme } from "next-themes"
 import { OfflineIndicator } from "@/components/pwa/offline-indicator"
 import { InstallPrompt } from "@/components/pwa/install-prompt"
 import { useAuth, signOut } from "@/features/auth"
+import { NotificationBell } from "@/components/notifications/notification-bell"
+import { NotificationPermissionPrompt } from "@/components/notifications/notification-permission-prompt"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -169,6 +171,7 @@ export default function DashboardLayout({
               </Button>
             </div>
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <Button
                 variant="ghost"
                 size="icon"
@@ -219,6 +222,9 @@ export default function DashboardLayout({
         {/* Page content */}
         <main className="p-4 md:p-6">{children}</main>
       </div>
+
+      {/* Notifications */}
+      <NotificationPermissionPrompt />
 
       {/* PWA: Install prompt */}
       <InstallPrompt />

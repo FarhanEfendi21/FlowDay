@@ -43,6 +43,7 @@ import {
 import { format, subDays } from "date-fns"
 import { id } from "date-fns/locale"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 export default function HabitsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -71,6 +72,9 @@ export default function HabitsPage() {
       isToday: i === 6,
     }
   })
+
+  // For mobile: show only last 2 days (yesterday + today)
+  const last2Days = last7Days.slice(-2)
 
   // ── Filter habits by search query ─────────────────────────
   const filteredHabits = useMemo(() => {
@@ -298,44 +302,47 @@ export default function HabitsPage() {
           {!isLoading && (
             <>
               {/* Stats */}
-              <div className="grid gap-4 sm:grid-cols-3">
-                <Card>
-                  <CardContent className="p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
-                        <Flame className="h-5 w-5 text-orange-500" />
+              <div className="grid gap-3 sm:gap-4 grid-cols-3">
+                <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent" />
+                  <CardContent className="relative p-3 sm:p-5">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+                      <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-red-500 shadow-lg shadow-orange-500/30">
+                        <Flame className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                       </div>
-                      <div>
-                        <p className="text-2xl font-semibold">{totalStreak}</p>
-                        <p className="text-sm text-muted-foreground">Total Streak</p>
+                      <div className="text-center sm:text-left">
+                        <p className="text-2xl sm:text-3xl font-bold tracking-tight">{totalStreak}</p>
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Streak</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardContent className="p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                  <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent" />
+                  <CardContent className="relative p-3 sm:p-5">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+                      <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 shadow-lg shadow-green-500/30">
+                        <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                       </div>
-                      <div>
-                        <p className="text-2xl font-semibold">
+                      <div className="text-center sm:text-left">
+                        <p className="text-2xl sm:text-3xl font-bold tracking-tight">
                           {habitsCompletedToday}/{filteredHabits.length}
                         </p>
-                        <p className="text-sm text-muted-foreground">Selesai Hari Ini</p>
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Selesai Hari Ini</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardContent className="p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                        <span className="text-lg font-semibold">{filteredHabits.length}</span>
+                <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
+                  <CardContent className="relative p-3 sm:p-5">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3">
+                      <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-blue-600 shadow-lg shadow-primary/30">
+                        <span className="text-lg sm:text-xl font-bold text-white">{filteredHabits.length}</span>
                       </div>
-                      <div>
-                        <p className="text-2xl font-semibold">{filteredHabits.length}</p>
-                        <p className="text-sm text-muted-foreground">Total Habit</p>
+                      <div className="text-center sm:text-left">
+                        <p className="text-2xl sm:text-3xl font-bold tracking-tight">{filteredHabits.length}</p>
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Habit</p>
                       </div>
                     </div>
                   </CardContent>
@@ -343,17 +350,25 @@ export default function HabitsPage() {
               </div>
 
               {/* Weekly Tracker */}
-              <Card className="overflow-hidden">
-                <CardHeader>
-                  <CardTitle className="text-base font-medium">Tracker Mingguan</CardTitle>
+              <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-xl">
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent" />
+                <CardHeader className="relative">
+                  <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-500/10">
+                      <Flame className="h-4 w-4 text-purple-500" />
+                    </div>
+                    <span className="hidden sm:inline">Tracker Mingguan</span>
+                    <span className="sm:hidden">Tracker</span>
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="p-0 sm:p-6">
+                <CardContent className="p-4 sm:p-6">
                   {filteredHabits.length > 0 ? (
-                    <div className="overflow-x-auto pb-4 sm:pb-0">
-                      <div className="min-w-[600px] space-y-4 px-4 sm:px-0">
+                    <div className="space-y-4">
+                      {/* Desktop View: 7 days */}
+                      <div className="hidden sm:block">
                         {/* Header Row */}
-                        <div className="flex items-center">
-                          <div className="w-[140px] shrink-0 sm:w-[180px]" />
+                        <div className="flex items-center mb-4">
+                          <div className="w-[180px] shrink-0" />
                           <div className="flex flex-1 justify-around">
                             {last7Days.map((day) => (
                               <div
@@ -362,9 +377,9 @@ export default function HabitsPage() {
                                   day.isToday ? "text-foreground" : "text-muted-foreground"
                                 }`}
                               >
-                                <span className="text-[10px] uppercase tracking-wider sm:text-xs">{day.label}</span>
+                                <span className="text-xs uppercase tracking-wider">{day.label}</span>
                                 <span
-                                  className={`mt-1 flex h-7 w-7 items-center justify-center rounded-full text-xs sm:text-sm ${
+                                  className={`mt-1 flex h-7 w-7 items-center justify-center rounded-full text-sm ${
                                     day.isToday ? "bg-foreground text-background" : ""
                                   }`}
                                 >
@@ -378,14 +393,14 @@ export default function HabitsPage() {
 
                         {/* Habit Rows */}
                         {filteredHabits.map((habit) => (
-                          <div key={habit.id} className="flex items-center">
-                            <div className="flex w-[140px] shrink-0 items-center gap-2 sm:w-[180px]">
-                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30 sm:h-8 sm:w-8">
-                                <Flame className="h-3.5 w-3.5 text-orange-500 sm:h-4 sm:w-4" />
+                          <div key={habit.id} className="flex items-center mb-3">
+                            <div className="flex w-[180px] shrink-0 items-center gap-2">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
+                                <Flame className="h-4 w-4 text-orange-500" />
                               </div>
                               <div className="min-w-0">
-                                <p className="truncate text-xs font-medium sm:text-sm">{habit.title}</p>
-                                <p className="text-[10px] text-muted-foreground sm:text-xs">
+                                <p className="truncate text-sm font-medium">{habit.title}</p>
+                                <p className="text-xs text-muted-foreground">
                                   {habit.currentStreak}d streak
                                 </p>
                               </div>
@@ -400,7 +415,7 @@ export default function HabitsPage() {
                                     <Checkbox
                                       checked={isCompleted}
                                       onCheckedChange={() => handleToggle(habit.id, day.date)}
-                                      className="h-5 w-5 sm:h-6 sm:w-6"
+                                      className="h-6 w-6"
                                     />
                                   </div>
                                 )
@@ -427,6 +442,65 @@ export default function HabitsPage() {
                           </div>
                         ))}
                       </div>
+
+                      {/* Mobile View: 2 days (yesterday + today) */}
+                      <div className="sm:hidden space-y-3">
+                        {filteredHabits.map((habit) => (
+                          <div key={habit.id} className="rounded-lg border p-3 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
+                                  <Flame className="h-4 w-4 text-orange-500" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium">{habit.title}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {habit.currentStreak}d streak
+                                  </p>
+                                </div>
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={() => handleDelete(habit.id)}
+                                    className="gap-2 text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    Hapus
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            <div className="flex gap-2">
+                              {last2Days.map((day) => {
+                                const isCompleted = habit.logs.some(
+                                  (log) => log.logDate === day.date && log.completed
+                                )
+                                return (
+                                  <div key={day.date} className="flex-1 flex flex-col items-center gap-2 p-2 rounded-lg bg-muted/30">
+                                    <div className="text-center">
+                                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{day.label}</p>
+                                      <p className={`text-sm font-medium ${day.isToday ? "text-foreground" : "text-muted-foreground"}`}>
+                                        {day.dayNum}
+                                      </p>
+                                    </div>
+                                    <Checkbox
+                                      checked={isCompleted}
+                                      onCheckedChange={() => handleToggle(habit.id, day.date)}
+                                      className="h-6 w-6"
+                                    />
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <div className="p-6">
@@ -446,28 +520,39 @@ export default function HabitsPage() {
 
               {/* Habit Cards (Today's status) */}
               {filteredHabits.length > 0 && (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {filteredHabits.map((habit) => (
-                    <Card key={habit.id}>
-                      <CardContent className="p-5">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
+                    <Card 
+                      key={habit.id}
+                      className={cn(
+                        "relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.02]",
+                        habit.isCompletedToday && "border-green-500/50"
+                      )}
+                    >
+                      {habit.isCompletedToday && (
+                        <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent" />
+                      )}
+                      <CardContent className="relative p-4 sm:p-5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                             <div
-                              className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                              className={cn(
+                                "flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg transition-all",
                                 habit.isCompletedToday
-                                  ? "bg-green-100 dark:bg-green-900/30"
-                                  : "bg-muted"
-                              }`}
+                                  ? "bg-gradient-to-br from-green-500 to-emerald-500 shadow-lg shadow-green-500/30"
+                                  : "bg-gradient-to-br from-orange-500/20 to-red-500/20"
+                              )}
                             >
                               {habit.isCompletedToday ? (
-                                <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                               ) : (
-                                <Flame className="h-5 w-5 text-orange-500" />
+                                <Flame className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500" />
                               )}
                             </div>
-                            <div>
-                              <p className="font-medium">{habit.title}</p>
-                              <p className="text-sm text-muted-foreground">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm sm:text-base truncate">{habit.title}</p>
+                              <p className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
+                                <Flame className="h-3 w-3 text-orange-500" />
                                 {habit.currentStreak} hari streak
                               </p>
                             </div>
@@ -475,6 +560,7 @@ export default function HabitsPage() {
                           <Checkbox
                             checked={habit.isCompletedToday}
                             onCheckedChange={() => handleToggle(habit.id, today)}
+                            className="mt-1 shrink-0"
                           />
                         </div>
                       </CardContent>

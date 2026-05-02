@@ -22,6 +22,7 @@ import {
   Target,
   Clock,
 } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 // ── Supabase hooks — semua data user-specific via p_user_id ───
 import {
@@ -69,7 +70,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Overview Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Completion Rate"
           value={summary ? `${summary.completionRate}%` : "—"}
@@ -123,9 +124,13 @@ export default function AnalyticsPage() {
       {/* Charts Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Weekly Task Progress */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-medium">
+        <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-xl">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />
+          <CardHeader className="relative">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
+                <TrendingUp className="h-4 w-4 text-primary" />
+              </div>
               Progress Tugas Mingguan
             </CardTitle>
           </CardHeader>
@@ -194,9 +199,13 @@ export default function AnalyticsPage() {
         </Card>
 
         {/* Habit Stats */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-medium">
+        <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-xl">
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-transparent" />
+          <CardHeader className="relative">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500/10">
+                <Flame className="h-4 w-4 text-orange-500" />
+              </div>
               Statistik Habit (30 Hari)
             </CardTitle>
           </CardHeader>
@@ -249,10 +258,13 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Tasks by Subject (dari Supabase RPC get_subject_task_stats) */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base font-medium">
-            <BookOpen className="h-4 w-4" />
+      <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent" />
+        <CardHeader className="relative">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-500/10">
+              <BookOpen className="h-4 w-4 text-purple-500" />
+            </div>
             Tugas per Mata Kuliah
           </CardTitle>
         </CardHeader>
@@ -302,55 +314,64 @@ export default function AnalyticsPage() {
       </Card>
 
       {/* Priority Distribution */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="p-5">
+      <div className="grid gap-3 sm:gap-4 grid-cols-3">
+        <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent" />
+          <CardContent className="relative p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Prioritas Tinggi</p>
+                <p className="text-sm font-medium text-muted-foreground">Prioritas Tinggi</p>
                 {loadingTasks ? (
                   <Skeleton className="mt-1 h-8 w-10" />
                 ) : (
-                  <p className="mt-1 text-2xl font-semibold">
+                  <p className="mt-2 text-3xl font-bold tracking-tight">
                     {priorityStats.high}
                   </p>
                 )}
               </div>
-              <div className="h-3 w-3 rounded-full bg-red-500" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-red-600 shadow-lg shadow-red-500/30">
+                <div className="h-4 w-4 rounded-full bg-white" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-5">
+        <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent" />
+          <CardContent className="relative p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Prioritas Sedang</p>
+                <p className="text-sm font-medium text-muted-foreground">Prioritas Sedang</p>
                 {loadingTasks ? (
                   <Skeleton className="mt-1 h-8 w-10" />
                 ) : (
-                  <p className="mt-1 text-2xl font-semibold">
+                  <p className="mt-2 text-3xl font-bold tracking-tight">
                     {priorityStats.medium}
                   </p>
                 )}
               </div>
-              <div className="h-3 w-3 rounded-full bg-yellow-500" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-yellow-500 to-yellow-600 shadow-lg shadow-yellow-500/30">
+                <div className="h-4 w-4 rounded-full bg-white" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-5">
+        <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent" />
+          <CardContent className="relative p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Prioritas Rendah</p>
+                <p className="text-sm font-medium text-muted-foreground">Prioritas Rendah</p>
                 {loadingTasks ? (
                   <Skeleton className="mt-1 h-8 w-10" />
                 ) : (
-                  <p className="mt-1 text-2xl font-semibold">
+                  <p className="mt-2 text-3xl font-bold tracking-tight">
                     {priorityStats.low}
                   </p>
                 )}
               </div>
-              <div className="h-3 w-3 rounded-full bg-green-500" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-green-600 shadow-lg shadow-green-500/30">
+                <div className="h-4 w-4 rounded-full bg-white" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -374,11 +395,14 @@ function StatsCard({
   isLoading?: boolean
 }) {
   return (
-    <Card>
-      <CardContent className="p-4 sm:p-5">
+    <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
+      <CardContent className="relative p-4 sm:p-5">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-xs sm:text-sm text-muted-foreground truncate">{title}</span>
-          <div className="text-muted-foreground shrink-0">{icon}</div>
+          <span className="text-xs sm:text-sm font-medium text-muted-foreground truncate">{title}</span>
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 text-primary shrink-0">
+            {icon}
+          </div>
         </div>
         {isLoading ? (
           <div className="mt-2 space-y-1">
@@ -386,9 +410,9 @@ function StatsCard({
             <Skeleton className="h-3 w-28" />
           </div>
         ) : (
-          <div className="mt-2">
-            <p className="text-xl sm:text-2xl font-semibold truncate">{value}</p>
-            <p className="mt-1 text-[10px] sm:text-xs text-muted-foreground line-clamp-1">{subtitle}</p>
+          <div className="mt-3">
+            <p className="text-2xl sm:text-3xl font-bold tracking-tight truncate">{value}</p>
+            <p className="mt-1.5 text-[10px] sm:text-xs font-medium text-muted-foreground line-clamp-1">{subtitle}</p>
           </div>
         )}
       </CardContent>

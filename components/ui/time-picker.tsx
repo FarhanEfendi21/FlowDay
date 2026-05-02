@@ -22,48 +22,72 @@ export function TimePicker({
   id = "time",
   label = "Waktu",
 }: TimePickerProps) {
-  const [hours, setHours] = React.useState(23)
-  const [minutes, setMinutes] = React.useState(59)
+  // Parse value string into hours & minutes numbers
+  const parseValue = (v: string) => {
+    const [h, m] = v.split(":")
+    return {
+      hours: Math.min(23, Math.max(0, parseInt(h || "23", 10))),
+      minutes: Math.min(59, Math.max(0, parseInt(m || "59", 10))),
+    }
+  }
 
-  // Parse initial value
+  const [hours, setHours] = React.useState(() => parseValue(value).hours)
+  const [minutes, setMinutes] = React.useState(() => parseValue(value).minutes)
+
+  // Only sync inward when the `value` prop changes from the parent
+  // (e.g. parent resets the form). Never call onChange here to avoid loops.
+  const prevValue = React.useRef(value)
   React.useEffect(() => {
-    if (value) {
-      const [h, m] = value.split(":")
-      setHours(parseInt(h || "23", 10))
-      setMinutes(parseInt(m || "59", 10))
+    if (value !== prevValue.current) {
+      prevValue.current = value
+      const parsed = parseValue(value)
+      setHours(parsed.hours)
+      setMinutes(parsed.minutes)
     }
   }, [value])
 
-  // Notify parent on change
-  React.useEffect(() => {
-    const timeString = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`
+  // Helper: build "HH:mm" string and notify parent
+  const notify = (h: number, m: number) => {
+    const timeString = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`
     onChange?.(timeString)
-  }, [hours, minutes, onChange])
+  }
+
+  // Call notify directly on each change — no useEffect that depends on onChange
+  const handleHoursChange = (h: number) => {
+    setHours(h)
+    notify(h, minutes)
+  }
+
+  const handleMinutesChange = (m: number) => {
+    setMinutes(m)
+    notify(hours, m)
+  }
+
+  // For presets: set both at once to avoid stale closure (hours/minutes not yet updated)
+  const handlePresetChange = (h: number, m: number) => {
+    setHours(h)
+    setMinutes(m)
+    notify(h, m)
+  }
 
   const handleHoursInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value.replace(/\D/g, "")
     if (val === "") return
-    
     const num = parseInt(val, 10)
-    if (!isNaN(num) && num >= 0 && num <= 23) {
-      setHours(num)
-    }
+    if (!isNaN(num) && num >= 0 && num <= 23) handleHoursChange(num)
   }
 
   const handleMinutesInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value.replace(/\D/g, "")
     if (val === "") return
-    
     const num = parseInt(val, 10)
-    if (!isNaN(num) && num >= 0 && num <= 59) {
-      setMinutes(num)
-    }
+    if (!isNaN(num) && num >= 0 && num <= 59) handleMinutesChange(num)
   }
 
   return (
     <div className="space-y-3">
       {label && <Label htmlFor={id} className="text-sm font-medium">{label}</Label>}
-      
+
       {/* Time Display & Input */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 flex-1">
@@ -83,9 +107,9 @@ export function TimePicker({
               Jam
             </span>
           </div>
-          
+
           <span className="text-lg font-semibold text-muted-foreground pb-1">:</span>
-          
+
           {/* Minutes */}
           <div className="relative flex-1">
             <Input
@@ -103,7 +127,7 @@ export function TimePicker({
             </span>
           </div>
         </div>
-        
+
         {/* Clock Icon */}
         <div className="flex items-center justify-center w-11 h-11 rounded-md border bg-muted/50">
           <Clock className="h-4 w-4 text-muted-foreground" />
@@ -116,7 +140,7 @@ export function TimePicker({
         <div className="space-y-1.5">
           <Slider
             value={[hours]}
-            onValueChange={(val) => setHours(val[0])}
+            onValueChange={(val) => handleHoursChange(val[0])}
             min={0}
             max={23}
             step={1}
@@ -129,7 +153,7 @@ export function TimePicker({
         <div className="space-y-1.5">
           <Slider
             value={[minutes]}
-            onValueChange={(val) => setMinutes(val[0])}
+            onValueChange={(val) => handleMinutesChange(val[0])}
             min={0}
             max={59}
             step={1}
@@ -150,10 +174,7 @@ export function TimePicker({
           <button
             key={preset.label}
             type="button"
-            onClick={() => {
-              setHours(preset.time[0])
-              setMinutes(preset.time[1])
-            }}
+            onClick={() => handlePresetChange(preset.time[0], preset.time[1])}
             disabled={disabled}
             className={cn(
               "flex-1 px-2 py-1.5 text-xs font-medium rounded-md border transition-colors",

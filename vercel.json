@@ -1,0 +1,27 @@
+{
+  "crons": [
+    {
+      "path": "/api/notifications/check-deadlines",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/notifications/check-habits",
+      "schedule": "0 20 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/firebase-messaging-sw.js",
+      "headers": [
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    }
+  ]
+}

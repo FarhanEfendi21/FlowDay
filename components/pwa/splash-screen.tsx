@@ -3,22 +3,42 @@
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 
+const SPLASH_SHOWN_KEY = "flowday-splash-shown-today"
+
+// Check if splash should be shown (once per day)
+function shouldShowSplash(): boolean {
+  if (typeof window === 'undefined') return false
+  
+  const lastShown = localStorage.getItem(SPLASH_SHOWN_KEY)
+  const today = new Date().toDateString()
+  
+  // Show splash if never shown or shown on different day
+  return lastShown !== today
+}
+
+// Mark splash as shown for today
+function markSplashShown(): void {
+  if (typeof window === 'undefined') return
+  const today = new Date().toDateString()
+  localStorage.setItem(SPLASH_SHOWN_KEY, today)
+}
+
 export function SplashScreen() {
   const [isVisible, setIsVisible] = useState(false)
   const [isFadingOut, setIsFadingOut] = useState(false)
 
   useEffect(() => {
-    // Check if splash has already been shown in this session
-    const hasShownSplash = sessionStorage.getItem("flowday-splash-shown")
-    
-    if (hasShownSplash) {
+    // Check if we should show splash
+    if (!shouldShowSplash()) {
+      console.log('[SplashScreen] Already shown today, skipping')
       setIsVisible(false)
       return
     }
 
-    // If not shown, show it and set the flag
+    // Show splash and mark as shown
+    console.log('[SplashScreen] First time today, showing splash')
     setIsVisible(true)
-    sessionStorage.setItem("flowday-splash-shown", "true")
+    markSplashShown()
 
     // Show for 1.2s then fade out
     const fadeTimer = setTimeout(() => setIsFadingOut(true), 1200)

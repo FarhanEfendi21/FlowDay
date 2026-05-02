@@ -90,17 +90,23 @@ export async function signUp(input: SignUpInput): Promise<void> {
  *   - flowday-cache-*           (React Query per-user persisted cache, v3)
  *   - flowday-query-cache-*     (legacy key from v1/v2)
  *   - flowday-storage           (Zustand localStorage — legacy)
+ * 
+ * Preserves:
+ *   - flowday-splash-shown-today (splash screen daily flag)
  */
 export function clearClientCache(): void {
   if (typeof window === 'undefined') return
 
+  // Clear localStorage (except splash flag)
   const remove: string[] = []
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i)
     if (
       k &&
+      k !== 'flowday-splash-shown-today' &&
       (k.startsWith('flowday-cache') ||
         k.startsWith('flowday-query-cache') ||
+        k.startsWith('flowday-splash') ||
         k === 'flowday-storage')
     ) {
       remove.push(k)
@@ -108,7 +114,10 @@ export function clearClientCache(): void {
   }
   remove.forEach((k) => localStorage.removeItem(k))
 
-  try { sessionStorage.clear() } catch { /* ignore */ }
+  // Clear sessionStorage completely
+  try {
+    sessionStorage.clear()
+  } catch { /* ignore */ }
 }
 
 // ─── signOut ─────────────────────────────────────────────────
