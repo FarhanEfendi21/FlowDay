@@ -7,9 +7,12 @@
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#ffffff",
-  "background_color": "#ffffff",
+  "background_color": "#000000",
   "lang": "id",
-  "categories": ["productivity", "education"],
+  "categories": [
+    "productivity",
+    "education"
+  ],
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
@@ -34,14 +37,24 @@
       "short_name": "Tasks",
       "url": "/dashboard/tasks",
       "description": "Lihat dan kelola tugas kuliah",
-      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Kebiasaan",
       "short_name": "Habits",
       "url": "/dashboard/habits",
       "description": "Tracking habit harian",
-      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

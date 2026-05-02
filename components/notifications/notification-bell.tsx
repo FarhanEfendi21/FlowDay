@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge"
 import { useUnreadCount } from "@/features/notifications"
 import { NotificationList } from "./notification-list"
 
+import { cn } from "@/lib/utils"
+
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
   const { data: unreadCount = 0 } = useUnreadCount()
@@ -23,17 +25,20 @@ export function NotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className="relative"
+          className={cn("relative transition-all", unreadCount > 0 && "text-primary hover:bg-primary/10")}
           aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
         >
-          <Bell className="h-5 w-5" />
+          <Bell className={cn("h-5 w-5", unreadCount > 0 && "fill-primary/20")} />
           {unreadCount > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px]"
-            >
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </Badge>
+            <>
+              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive animate-ping opacity-75"></span>
+              <Badge
+                variant="destructive"
+                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] shadow-sm border-background border-2"
+              >
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </Badge>
+            </>
           )}
         </Button>
       </PopoverTrigger>
