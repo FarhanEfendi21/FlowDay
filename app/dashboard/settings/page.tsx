@@ -28,10 +28,13 @@ import {
   X,
   LogOut,
   RotateCcw,
+  Bell,
 } from "lucide-react"
 import { useAuth, signOut, clearClientCache } from "@/features/auth"
 import { createClient } from "@/lib/supabase/client"
 import { useOnboarding } from "@/hooks/use-onboarding"
+import { useFCM } from "@/features/notifications/hooks/useFCM"
+import { cn } from "@/lib/utils"
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
@@ -41,6 +44,7 @@ export default function SettingsPage() {
   const removeSubjectMutation = useRemoveSubject()
   const { user } = useAuth()
   const { resetOnboarding } = useOnboarding()
+  const { permission, isSupported, requestPermission } = useFCM()
   const [newSubject, setNewSubject] = useState("")
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -188,6 +192,52 @@ export default function SettingsPage() {
               checked={theme === "dark"}
               onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notifications Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Bell className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="text-base font-medium">Notifikasi</CardTitle>
+          </div>
+          <CardDescription>Kelola izin notifikasi pengingat tugas dan habit</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                <Bell className={cn("h-5 w-5", permission === "granted" ? "text-primary" : "text-muted-foreground")} />
+              </div>
+              <div>
+                <p className="font-medium">Push Notifications</p>
+                <p className="text-sm text-muted-foreground">
+                  {isSupported 
+                    ? permission === "granted" 
+                      ? "Notifikasi telah diaktifkan." 
+                      : permission === "denied"
+                        ? "Akses notifikasi diblokir. Harap izinkan melalui pengaturan browser Anda."
+                        : "Dapatkan pengingat untuk deadline dan habit Anda."
+                    : "Browser Anda tidak mendukung push notifications."}
+                </p>
+              </div>
+            </div>
+            {isSupported && permission !== "granted" && (
+              <Button 
+                onClick={requestPermission} 
+                disabled={permission === "denied"}
+                variant={permission === "denied" ? "outline" : "default"}
+              >
+                {permission === "denied" ? "Diblokir" : "Aktifkan"}
+              </Button>
+            )}
+            {isSupported && permission === "granted" && (
+              <Badge variant="default" className="bg-green-500 hover:bg-green-600 sm:self-center">
+                Aktif
+              </Badge>
+            )}
           </div>
         </CardContent>
       </Card>

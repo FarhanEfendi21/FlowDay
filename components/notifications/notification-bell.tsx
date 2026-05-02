@@ -37,7 +37,7 @@ export function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[380px] p-0" align="end">
+      <PopoverContent className="w-[calc(100vw-32px)] sm:w-[380px] p-0" align="end" sideOffset={8}>
         <NotificationList onClose={() => setOpen(false)} />
       </PopoverContent>
     </Popover>

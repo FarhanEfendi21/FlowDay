@@ -164,10 +164,15 @@ export function NotificationList({ onClose }: NotificationListProps) {
                           {notification.body}
                         </p>
                         <p className="text-[10px] text-muted-foreground mt-2">
-                          {formatDistanceToNow(new Date(notification.createdAt), {
-                            addSuffix: true,
-                            locale: id,
-                          })}
+                          {(() => {
+                            const dateStr = notification.createdAt || (notification as any).created_at
+                            const dateObj = dateStr ? new Date(dateStr) : new Date()
+                            const validDate = isNaN(dateObj.getTime()) ? new Date() : dateObj
+                            return formatDistanceToNow(validDate, {
+                              addSuffix: true,
+                              locale: id,
+                            })
+                          })()}
                         </p>
                       </div>
                       <Button

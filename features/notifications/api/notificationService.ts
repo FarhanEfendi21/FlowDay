@@ -84,7 +84,16 @@ export async function getNotifications(limit = 50) {
     .limit(limit)
 
   if (error) throw error
-  return data as Notification[]
+  return data.map((n: any) => ({
+    id: n.id,
+    userId: n.user_id,
+    title: n.title,
+    body: n.body,
+    type: n.type,
+    data: n.data,
+    read: n.read,
+    createdAt: n.created_at,
+  })) as Notification[]
 }
 
 /**
@@ -180,5 +189,14 @@ export async function createNotification(
     .single()
 
   if (error) throw error
-  return notification as Notification
+  return {
+    id: notification.id,
+    userId: notification.user_id,
+    title: notification.title,
+    body: notification.body,
+    type: notification.type,
+    data: notification.data,
+    read: notification.read,
+    createdAt: notification.created_at,
+  } as Notification
 }

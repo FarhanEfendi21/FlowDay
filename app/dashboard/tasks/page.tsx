@@ -20,6 +20,9 @@ import {
   combineDateTimeISO,
 } from "@/features/tasks"
 import { useGetSubjectNames } from "@/features/subjects"
+import { useAuth } from "@/features/auth"
+import { triggerTaskCompleteConfetti } from "@/lib/confetti"
+import { createNotification } from "@/features/notifications/api/notificationService"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -86,6 +89,8 @@ export default function TasksPage() {
   const restoreTask  = useRestoreTask()
   const permanentDelete = usePermanentDeleteTask()
 
+  const { user } = useAuth()
+
   // ── Subjects dari Supabase (user-specific) ─────────────────
   const { data: subjects = [] } = useGetSubjectNames()
 
@@ -147,28 +152,50 @@ export default function TasksPage() {
     )
   }
 
-  const handleDelete = (id: string) => {
-    deleteTask.mutate(id, {
+  const handleDelete = (taskId: string) => {
+    deleteTask.mutate(taskId, {
       onError: (err) => toast.error(err.message),
     })
   }
 
-  const handleToggle = (id: string) => {
-    toggleStatus.mutate(id, {
+  const handleToggle = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId)
+    const isCompleting = task && task.status === "todo"
+
+    toggleStatus.mutate(taskId, {
+      onSuccess: () => {
+        if (isCompleting) {
+          // Trigger animations and notifications
+          triggerTaskCompleteConfetti()
+          
+          if (user?.id) {
+            createNotification({
+              userId: user.id,
+              title: "Tugas Selesai! 🎉",
+              body: `Kamu berhasil menyelesaikan "${task.title}".`,
+              type: "task_complete",
+              data: {
+                url: "/dashboard/tasks",
+                tag: `task-complete-${task.id}`
+              }
+            }).catch(console.error)
+          }
+        }
+      },
       onError: (err) => toast.error(err.message),
     })
   }
 
-  const handleRestore = (id: string) => {
-    restoreTask.mutate(id, {
+  const handleRestore = (taskId: string) => {
+    restoreTask.mutate(taskId, {
       onSuccess: () => toast.success("Tugas berhasil dikembalikan!"),
       onError: (err) => toast.error(err.message),
     })
   }
 
-  const handlePermanentDelete = (id: string) => {
+  const handlePermanentDelete = (taskId: string) => {
     if (!confirm("Hapus permanen? Tindakan ini tidak dapat dibatalkan!")) return
-    permanentDelete.mutate(id, {
+    permanentDelete.mutate(taskId, {
       onSuccess: () => toast.success("Tugas berhasil dihapus permanen!"),
       onError: (err) => toast.error(err.message),
     })

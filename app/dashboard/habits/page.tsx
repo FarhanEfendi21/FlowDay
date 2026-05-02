@@ -10,6 +10,9 @@ import {
   useRestoreHabit,
   usePermanentDeleteHabit,
 } from "@/features/habits"
+import { useAuth } from "@/features/auth"
+import { triggerSimpleConfetti, triggerStreakMilestoneConfetti } from "@/lib/confetti"
+import { createNotification } from "@/features/notifications/api/notificationService"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -37,7 +40,6 @@ import {
   CheckCircle2,
   Loader2,
   RotateCcw,
-  X,
   Archive,
 } from "lucide-react"
 import { format, subDays } from "date-fns"
@@ -50,6 +52,8 @@ export default function HabitsPage() {
   const [newHabitTitle, setNewHabitTitle]     = useState("")
   const [searchQuery, setSearchQuery]         = useState("")
   const [showTrash, setShowTrash]             = useState(false)
+
+  const { user } = useAuth()
 
   // ── React Query hooks ─────────────────────────────────────
   const { data: habits = [], isLoading } = useGetHabits()
@@ -137,9 +141,46 @@ export default function HabitsPage() {
   }
 
   const handleToggle = (habitId: string, date: string) => {
+    const habit = habits.find(h => h.id === habitId)
+    if (!habit) return
+    
+    const isCompleted = habit.logs.some((log: any) => log.logDate === date && log.completed)
+    const isChecking = !isCompleted // It will be checked after toggle
+
     toggleHabit.mutate(
       { habitId, date },
-      { onError: (err) => toast.error(err.message) }
+      { 
+        onSuccess: () => {
+          if (isChecking) {
+            triggerSimpleConfetti()
+
+            // Calculate optimistic streak
+            let currentStreak = habit.currentStreak
+            if (date === today && !habit.isCompletedToday) {
+               currentStreak += 1
+            }
+
+            // Trigger milestone logic for every 7 days
+            if (currentStreak > 0 && currentStreak % 7 === 0) {
+              triggerStreakMilestoneConfetti(currentStreak)
+              
+              if (user?.id) {
+                createNotification({
+                  userId: user.id,
+                  title: `Wow! Streak ${currentStreak} Hari 🔥`,
+                  body: `Luar biasa! Kamu berhasil mempertahankan kebiasaan "${habit.title}" selama ${currentStreak} hari berturut-turut.`,
+                  type: "streak_milestone",
+                  data: {
+                    url: "/dashboard/habits",
+                    tag: `streak-${habitId}-${currentStreak}`
+                  }
+                }).catch(console.error)
+              }
+            }
+          }
+        },
+        onError: (err) => toast.error(err.message) 
+      }
     )
   }
 
