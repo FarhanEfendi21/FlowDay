@@ -29,7 +29,9 @@ messaging.onBackgroundMessage((payload) => {
     vibrate: [200, 100, 200],
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  // Firebase SDK automatically shows the notification if the payload contains a 'notification' object.
+  // Calling showNotification manually here causes duplicate notifications on Android/Chrome.
+  // self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
 // Handle notification click
