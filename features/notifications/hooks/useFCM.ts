@@ -19,7 +19,22 @@ export function useFCM() {
   useEffect(() => {
     // Check if notifications are supported
     setIsSupported(isNotificationSupported())
-    setPermission(getNotificationPermission())
+    const currentPerm = getNotificationPermission()
+    setPermission(currentPerm)
+
+    // Auto-sync token if permission is already granted
+    if (currentPerm === "granted") {
+      requestNotificationPermission().then((fcmToken) => {
+        if (fcmToken) {
+          setToken(fcmToken)
+          saveFCMToken(fcmToken, {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            timestamp: new Date().toISOString(),
+          }).catch(console.error)
+        }
+      })
+    }
 
     // Listen for foreground messages
     const unsubscribe = onForegroundMessage((payload) => {
