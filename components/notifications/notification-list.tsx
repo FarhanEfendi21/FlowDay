@@ -89,7 +89,7 @@ export function NotificationList({ onClose }: NotificationListProps) {
   }
 
   return (
-    <div className="flex flex-col h-[500px]">
+    <div className="flex flex-col h-[80vh] sm:h-[500px]">
       {/* Header */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between">
@@ -178,7 +178,7 @@ export function NotificationList({ onClose }: NotificationListProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                         onClick={(e) => {
                           e.stopPropagation()
                           handleDelete(notification.id)
