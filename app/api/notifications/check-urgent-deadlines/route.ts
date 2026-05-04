@@ -41,12 +41,11 @@ export async function GET(request: NextRequest) {
     // Get tasks due within 2 hours
     const { data: tasks, error: tasksError } = await supabase
       .from("tasks")
-      .select("id, title, due_date, due_time, user_id, subject")
+      .select("id, title, due_date, user_id, subject")
       .eq("status", "todo")
       .eq("deleted", false)
-      .not("due_time", "is", null) // Only tasks with specific time
-      .gte("due_date", now.toISOString().split("T")[0]) // Today or later
-      .lte("due_date", twoHoursLater.toISOString().split("T")[0]) // Not too far in future
+      .gte("due_date", nowISO) // Due date >= now
+      .lte("due_date", twoHoursLaterISO) // Due date <= 2 hours from now
 
     if (tasksError) {
       console.error("Error fetching tasks:", tasksError)
@@ -65,10 +64,7 @@ export async function GET(request: NextRequest) {
 
     // Filter tasks that are due within 2 hours
     const urgentTasks = tasks.filter((task) => {
-      if (!task.due_time) return false
-
-      // Combine date and time
-      const dueDateTime = new Date(`${task.due_date}T${task.due_time}`)
+      const dueDateTime = new Date(task.due_date)
       const timeDiff = dueDateTime.getTime() - now.getTime()
       const hoursUntilDue = timeDiff / (1000 * 60 * 60)
 
@@ -104,7 +100,7 @@ export async function GET(request: NextRequest) {
       tasks: urgentTasks.map((t) => ({ 
         id: t.id, 
         title: t.title, 
-        due_time: t.due_time 
+        due_date: t.due_date 
       })),
     })
   } catch (error) {
@@ -119,8 +115,13 @@ export async function GET(request: NextRequest) {
 async function sendUrgentDeadlineNotification(task: any) {
   const apiUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
 
-  // Format time for display
-  const dueTime = task.due_time ? task.due_time.substring(0, 5) : ""
+  // Format time for display (extract time from due_date TIMESTAMPTZ)
+  const dueDateTime = new Date(task.due_date)
+  const dueTime = dueDateTime.toLocaleTimeString('id-ID', { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    hour12: false 
+  })
 
   const response = await fetch(`${apiUrl}/api/notifications/send`, {
     method: "POST",
@@ -136,7 +137,7 @@ async function sendUrgentDeadlineNotification(task: any) {
         taskId: task.id,
         url: "/dashboard/tasks",
         tag: `urgent-deadline-${task.id}`,
-        dueTime: task.due_time,
+        dueDate: task.due_date,
       },
     }),
   })
