@@ -87,6 +87,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Send notification for each urgent task
+    console.log(`Sending notifications for ${urgentTasks.length} urgent tasks...`)
+    
     const notificationPromises = urgentTasks.map((task) =>
       sendUrgentDeadlineNotification(task)
     )
@@ -95,6 +97,17 @@ export async function GET(request: NextRequest) {
     
     const successCount = results.filter((r) => r.status === "fulfilled").length
     const failureCount = results.filter((r) => r.status === "rejected").length
+
+    // Log detailed results
+    results.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.error(`Notification ${index + 1} failed:`, result.reason)
+      } else {
+        console.log(`Notification ${index + 1} sent successfully:`, result.value)
+      }
+    })
+
+    console.log(`✅ Success: ${successCount}, ❌ Failed: ${failureCount}`)
 
     return NextResponse.json({
       success: true,
@@ -127,30 +140,38 @@ async function sendUrgentDeadlineNotification(task: any) {
     hour12: false 
   })
 
+  const payload = {
+    userId: task.user_id,
+    title: "🚨 Deadline 2 Jam Lagi!",
+    body: `Tugas "${task.title}" (${task.subject}) jatuh tempo jam ${dueTime}`,
+    type: "urgent_deadline",
+    data: {
+      taskId: task.id,
+      url: "/dashboard/tasks",
+      tag: `urgent-deadline-${task.id}`,
+      dueDate: task.due_date,
+    },
+  }
+
+  console.log(`📤 Sending notification for task "${task.title}" to user ${task.user_id}`)
+  console.log(`   API URL: ${apiUrl}/api/notifications/send`)
+  console.log(`   Payload:`, JSON.stringify(payload, null, 2))
+
   const response = await fetch(`${apiUrl}/api/notifications/send`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      userId: task.user_id,
-      title: "🚨 Deadline 2 Jam Lagi!",
-      body: `Tugas "${task.title}" (${task.subject}) jatuh tempo jam ${dueTime}`,
-      type: "urgent_deadline",
-      data: {
-        taskId: task.id,
-        url: "/dashboard/tasks",
-        tag: `urgent-deadline-${task.id}`,
-        dueDate: task.due_date,
-      },
-    }),
+    body: JSON.stringify(payload),
   })
 
+  const responseData = await response.json()
+  
   if (!response.ok) {
-    const error = await response.text()
-    console.error(`Failed to send notification for task ${task.id}:`, error)
-    throw new Error(`Failed to send notification for task ${task.id}`)
+    console.error(`❌ Failed to send notification for task ${task.id}:`, responseData)
+    throw new Error(`Failed to send notification for task ${task.id}: ${JSON.stringify(responseData)}`)
   }
 
-  return response.json()
+  console.log(`✅ Notification sent successfully for task ${task.id}:`, responseData)
+  return responseData
 }

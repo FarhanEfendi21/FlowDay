@@ -40,20 +40,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's FCM tokens
+    console.log(`🔍 Fetching FCM tokens for user: ${userId}`)
+    
     const { data: tokens, error: tokensError } = await supabase
       .from("fcm_tokens")
       .select("token")
       .eq("user_id", userId)
 
     if (tokensError) {
-      console.error("Error fetching FCM tokens:", tokensError)
+      console.error("❌ Error fetching FCM tokens:", tokensError)
       return NextResponse.json(
         { error: "Failed to fetch FCM tokens" },
         { status: 500 }
       )
     }
 
+    console.log(`📱 Found ${tokens?.length || 0} FCM token(s) for user ${userId}`)
+
     if (!tokens || tokens.length === 0) {
+      console.warn(`⚠️ No FCM tokens found for user ${userId}`)
       return NextResponse.json(
         { message: "No FCM tokens found for user" },
         { status: 200 }
@@ -61,6 +66,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Save notification to database
+    console.log(`💾 Saving notification to database...`)
+    
     const { error: notificationError } = await supabase
       .from("notifications")
       .insert({
@@ -72,10 +79,14 @@ export async function POST(request: NextRequest) {
       })
 
     if (notificationError) {
-      console.error("Error saving notification:", notificationError)
+      console.error("❌ Error saving notification:", notificationError)
+    } else {
+      console.log("✅ Notification saved to database")
     }
 
     // Send FCM notification to all user's devices
+    console.log(`📤 Sending FCM notifications to ${tokens.length} device(s)...`)
+    
     const fcmPromises = tokens.map((tokenData) =>
       sendFCMNotification(tokenData.token, title, notificationBody, data)
     )
@@ -84,6 +95,17 @@ export async function POST(request: NextRequest) {
     
     const successCount = results.filter((r) => r.status === "fulfilled").length
     const failureCount = results.filter((r) => r.status === "rejected").length
+
+    // Log detailed results
+    results.forEach((result, index) => {
+      if (result.status === "rejected") {
+        console.error(`❌ FCM send ${index + 1} failed:`, result.reason)
+      } else {
+        console.log(`✅ FCM send ${index + 1} successful`)
+      }
+    })
+
+    console.log(`📊 FCM Results: ${successCount} success, ${failureCount} failed`)
 
     return NextResponse.json({
       success: true,
@@ -106,16 +128,21 @@ async function sendFCMNotification(
   body: string,
   data: Record<string, any>
 ) {
+  console.log(`🔧 Checking Firebase credentials...`)
+  
   // Use Legacy API if server key is available
   if (firebaseServerKey) {
+    console.log(`📡 Using Firebase Legacy API`)
     return sendFCMLegacy(token, title, body, data)
   }
   
   // Otherwise use HTTP v1 API
   if (firebaseServiceAccount) {
+    console.log(`📡 Using Firebase HTTP v1 API`)
     return sendFCMv1(token, title, body, data)
   }
   
+  console.error(`❌ No Firebase credentials configured!`)
   throw new Error("No Firebase credentials configured")
 }
 
