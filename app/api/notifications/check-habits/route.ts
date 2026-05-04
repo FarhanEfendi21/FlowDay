@@ -1,6 +1,7 @@
 // app/api/notifications/check-habits/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { sendNotification } from "@/lib/notifications/sendNotification"
 
 export const dynamic = "force-dynamic"
 
@@ -111,34 +112,20 @@ export async function GET(request: NextRequest) {
 }
 
 async function sendHabitReminderNotification(userId: string, habits: any[]) {
-  const apiUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-  
   const habitCount = habits.length
   const habitTitles = habits.map((h) => h.title).join(", ")
 
-  const response = await fetch(`${apiUrl}/api/notifications/send`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  return sendNotification({
+    userId,
+    title: "🔥 Jangan Putus Streak!",
+    body:
+      habitCount === 1
+        ? `Habit "${habits[0].title}" belum selesai hari ini`
+        : `${habitCount} habit belum selesai: ${habitTitles}`,
+    type: "habit_reminder",
+    data: {
+      url: "/dashboard/habits",
+      tag: "habit-reminder",
     },
-    body: JSON.stringify({
-      userId,
-      title: "🔥 Jangan Putus Streak!",
-      body:
-        habitCount === 1
-          ? `Habit "${habits[0].title}" belum selesai hari ini`
-          : `${habitCount} habit belum selesai: ${habitTitles}`,
-      type: "habit_reminder",
-      data: {
-        url: "/dashboard/habits",
-        tag: "habit-reminder",
-      },
-    }),
   })
-
-  if (!response.ok) {
-    throw new Error(`Failed to send habit reminder for user ${userId}`)
-  }
-
-  return response.json()
 }

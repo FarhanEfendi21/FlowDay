@@ -1,0 +1,240 @@
+// lib/notifications/sendNotification.ts
+import { createClient } from "@supabase/supabase-js"
+
+const firebaseServerKey = process.env.FIREBASE_SERVER_KEY
+const firebaseServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+
+interface SendNotificationParams {
+  userId: string
+  title: string
+  body: string
+  type: "deadline" | "urgent_deadline" | "habit_reminder" | "streak_milestone" | "task_complete"
+  data?: Record<string, any>
+}
+
+/**
+ * Shared function to send notifications
+ * Can be called directly from cron jobs without HTTP fetch
+ */
+export async function sendNotification(params: SendNotificationParams) {
+  const { userId, title, body, type, data = {} } = params
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error("Supabase credentials not configured")
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+  // Get user's FCM tokens
+  console.log(`🔍 Fetching FCM tokens for user: ${userId}`)
+  
+  const { data: tokens, error: tokensError } = await supabase
+    .from("fcm_tokens")
+    .select("token")
+    .eq("user_id", userId)
+
+  if (tokensError) {
+    console.error("❌ Error fetching FCM tokens:", tokensError)
+    throw new Error("Failed to fetch FCM tokens")
+  }
+
+  console.log(`📱 Found ${tokens?.length || 0} FCM token(s) for user ${userId}`)
+
+  if (!tokens || tokens.length === 0) {
+    console.warn(`⚠️ No FCM tokens found for user ${userId}`)
+    return {
+      success: true,
+      message: "No FCM tokens found for user",
+      successCount: 0,
+      failureCount: 0,
+    }
+  }
+
+  // Save notification to database
+  console.log(`💾 Saving notification to database...`)
+  
+  const { error: notificationError } = await supabase
+    .from("notifications")
+    .insert({
+      user_id: userId,
+      title,
+      body,
+      type,
+      data,
+    })
+
+  if (notificationError) {
+    console.error("❌ Error saving notification:", notificationError)
+  } else {
+    console.log("✅ Notification saved to database")
+  }
+
+  // Send FCM notification to all user's devices
+  console.log(`📤 Sending FCM notifications to ${tokens.length} device(s)...`)
+  
+  const fcmPromises = tokens.map((tokenData) =>
+    sendFCMNotification(tokenData.token, title, body, data)
+  )
+
+  const results = await Promise.allSettled(fcmPromises)
+  
+  const successCount = results.filter((r) => r.status === "fulfilled").length
+  const failureCount = results.filter((r) => r.status === "rejected").length
+
+  // Log detailed results
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      console.error(`❌ FCM send ${index + 1} failed:`, result.reason)
+    } else {
+      console.log(`✅ FCM send ${index + 1} successful`)
+    }
+  })
+
+  console.log(`📊 FCM Results: ${successCount} success, ${failureCount} failed`)
+
+  return {
+    success: true,
+    message: `Notification sent to ${successCount} device(s)`,
+    successCount,
+    failureCount,
+  }
+}
+
+async function sendFCMNotification(
+  token: string,
+  title: string,
+  body: string,
+  data: Record<string, any>
+) {
+  console.log(`🔧 Checking Firebase credentials...`)
+  
+  // Use Legacy API if server key is available
+  if (firebaseServerKey) {
+    console.log(`📡 Using Firebase Legacy API`)
+    return sendFCMLegacy(token, title, body, data)
+  }
+  
+  // Otherwise use HTTP v1 API
+  if (firebaseServiceAccount) {
+    console.log(`📡 Using Firebase HTTP v1 API`)
+    return sendFCMv1(token, title, body, data)
+  }
+  
+  console.error(`❌ No Firebase credentials configured!`)
+  throw new Error("No Firebase credentials configured")
+}
+
+// Legacy API (deprecated, but still works)
+async function sendFCMLegacy(
+  token: string,
+  title: string,
+  body: string,
+  data: Record<string, any>
+) {
+  const fcmEndpoint = "https://fcm.googleapis.com/fcm/send"
+
+  const payload = {
+    to: token,
+    notification: {
+      title,
+      body,
+      icon: "/icons/white-logo.png",
+      badge: "/icons/white-logo.png",
+      click_action: data.url || "/dashboard",
+    },
+    data: {
+      ...data,
+      url: data.url || "/dashboard",
+    },
+  }
+
+  const response = await fetch(fcmEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `key=${firebaseServerKey}`,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    throw new Error(`FCM Legacy request failed: ${error}`)
+  }
+
+  return response.json()
+}
+
+// HTTP v1 API (recommended)
+async function sendFCMv1(
+  token: string,
+  title: string,
+  body: string,
+  data: Record<string, any>
+) {
+  // Parse service account
+  const serviceAccount = JSON.parse(firebaseServiceAccount!)
+  const projectId = serviceAccount.project_id
+
+  // Get OAuth 2.0 access token
+  const accessToken = await getAccessToken(serviceAccount)
+
+  const fcmEndpoint = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`
+
+  const payload = {
+    message: {
+      token,
+      notification: {
+        title,
+        body,
+      },
+      data: {
+        ...data,
+        url: data.url || "/dashboard",
+      },
+      webpush: {
+        notification: {
+          icon: "/icons/white-logo.png",
+          badge: "/icons/white-logo.png",
+        },
+        fcm_options: {
+          link: data.url || "/dashboard",
+        },
+      },
+    },
+  }
+
+  const response = await fetch(fcmEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    throw new Error(`FCM v1 request failed: ${error}`)
+  }
+
+  return response.json()
+}
+
+// Get OAuth 2.0 access token for HTTP v1 API
+async function getAccessToken(serviceAccount: any) {
+  const { GoogleAuth } = await import("google-auth-library")
+  
+  const auth = new GoogleAuth({
+    credentials: serviceAccount,
+    scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
+  })
+
+  const client = await auth.getClient()
+  const accessToken = await client.getAccessToken()
+
+  return accessToken.token
+}

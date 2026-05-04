@@ -1,5 +1,33 @@
 # 🔍 Debug Guide: Urgent Deadline Notification
 
+## ✅ FIXED: ECONNREFUSED Error (2024-05-04)
+
+**Problem:** Cron jobs failing with `Error: connect ECONNREFUSED 127.0.0.1:3000`
+
+**Root Cause:** 
+- Cron endpoints used `fetch()` to call `/api/notifications/send` internally
+- Fallback to `http://localhost:3000` when `NEXT_PUBLIC_APP_URL` not set
+- In production (Vercel serverless), localhost doesn't exist!
+
+**Solution:**
+1. ✅ Created shared service: `lib/notifications/sendNotification.ts`
+2. ✅ All cron endpoints now call function directly (no HTTP fetch)
+3. ✅ Removed dependency on `NEXT_PUBLIC_APP_URL` for internal calls
+
+**Files Changed:**
+- `lib/notifications/sendNotification.ts` - New shared notification service
+- `app/api/notifications/send/route.ts` - Uses shared service
+- `app/api/notifications/check-deadlines/route.ts` - Direct function call
+- `app/api/notifications/check-urgent-deadlines/route.ts` - Direct function call  
+- `app/api/notifications/check-habits/route.ts` - Direct function call
+
+**Benefits:**
+- 🚀 Faster (no HTTP overhead)
+- 🔒 More secure (no need to expose internal endpoints)
+- ✅ Works in all environments (local, staging, production)
+
+---
+
 ## Status Saat Ini
 ✅ Task terdeteksi di logs: "Task '🚨 TEST - 2 Hours': 1.99 hours until deadline"  
 ✅ Cron job berjalan: "Found 1 urgent tasks out of 1 total"  

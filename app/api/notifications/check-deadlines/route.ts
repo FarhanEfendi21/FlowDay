@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { addDays, startOfDay, endOfDay } from "date-fns"
+import { sendNotification } from "@/lib/notifications/sendNotification"
 
 export const dynamic = "force-dynamic"
 
@@ -83,31 +84,15 @@ export async function GET(request: NextRequest) {
 }
 
 async function sendDeadlineNotification(task: any) {
-  const apiUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-
-  const response = await fetch(`${apiUrl}/api/notifications/send`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  return sendNotification({
+    userId: task.user_id,
+    title: "⏰ Deadline Besok!",
+    body: `Tugas "${task.title}" (${task.subject}) jatuh tempo besok`,
+    type: "deadline",
+    data: {
+      taskId: task.id,
+      url: "/dashboard/tasks",
+      tag: `deadline-${task.id}`,
     },
-    body: JSON.stringify({
-      userId: task.user_id,
-      title: "⏰ Deadline Besok!",
-      body: `Tugas "${task.title}" (${task.subject}) jatuh tempo besok`,
-      type: "deadline",
-      data: {
-        taskId: task.id,
-        url: "/dashboard/tasks",
-        tag: `deadline-${task.id}`,
-      },
-    }),
   })
-
-  if (!response.ok) {
-    const error = await response.text()
-    console.error(`Failed to send notification for task ${task.id}:`, error)
-    throw new Error(`Failed to send notification for task ${task.id}`)
-  }
-
-  return response.json()
 }

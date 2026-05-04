@@ -1,6 +1,7 @@
 // app/api/notifications/check-urgent-deadlines/route.ts
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { sendNotification } from "@/lib/notifications/sendNotification"
 
 export const dynamic = "force-dynamic"
 
@@ -130,8 +131,6 @@ export async function GET(request: NextRequest) {
 }
 
 async function sendUrgentDeadlineNotification(task: any) {
-  const apiUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-
   // Format time for display (extract time from due_date TIMESTAMPTZ)
   const dueDateTime = new Date(task.due_date)
   const dueTime = dueDateTime.toLocaleTimeString('id-ID', { 
@@ -140,7 +139,9 @@ async function sendUrgentDeadlineNotification(task: any) {
     hour12: false 
   })
 
-  const payload = {
+  console.log(`📤 Sending notification for task "${task.title}" to user ${task.user_id}`)
+
+  const result = await sendNotification({
     userId: task.user_id,
     title: "🚨 Deadline 2 Jam Lagi!",
     body: `Tugas "${task.title}" (${task.subject}) jatuh tempo jam ${dueTime}`,
@@ -151,27 +152,8 @@ async function sendUrgentDeadlineNotification(task: any) {
       tag: `urgent-deadline-${task.id}`,
       dueDate: task.due_date,
     },
-  }
-
-  console.log(`📤 Sending notification for task "${task.title}" to user ${task.user_id}`)
-  console.log(`   API URL: ${apiUrl}/api/notifications/send`)
-  console.log(`   Payload:`, JSON.stringify(payload, null, 2))
-
-  const response = await fetch(`${apiUrl}/api/notifications/send`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
   })
 
-  const responseData = await response.json()
-  
-  if (!response.ok) {
-    console.error(`❌ Failed to send notification for task ${task.id}:`, responseData)
-    throw new Error(`Failed to send notification for task ${task.id}: ${JSON.stringify(responseData)}`)
-  }
-
-  console.log(`✅ Notification sent successfully for task ${task.id}:`, responseData)
-  return responseData
+  console.log(`✅ Notification sent successfully for task ${task.id}:`, result)
+  return result
 }
