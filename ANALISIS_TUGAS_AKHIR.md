@@ -68,7 +68,7 @@ Project FlowDay telah memenuhi **SEMUA** ketentuan Tugas Akhir praktikum dengan 
 
 Ada 2 cara valid untuk mendefinisikan 2 aktor dalam sistem ini:
 
-#### **Opsi 1: User Mahasiswa & System (Recommended untuk Presentasi)**
+#### **Opsi 1: User Mahasiswa & System **
 
 **Aktor 1: Mahasiswa/User** (auth.users)
 - Login dan registrasi ke sistem
