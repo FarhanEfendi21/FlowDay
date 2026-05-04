@@ -80,6 +80,12 @@ export function NotificationList({ onClose }: NotificationListProps) {
             <Calendar className="h-4 w-4" />
           </div>
         )
+      case "urgent_deadline":
+        return (
+          <div className={cn(baseClass, "bg-red-600/20 text-red-600 animate-pulse", !isRead && "bg-red-600/30")}>
+            <Calendar className="h-4 w-4" />
+          </div>
+        )
       case "habit_reminder":
         return (
           <div className={cn(baseClass, "bg-orange-500/10 text-orange-500", !isRead && "bg-orange-500/20")}>

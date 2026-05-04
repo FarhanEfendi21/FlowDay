@@ -8,7 +8,7 @@ export interface Notification {
   userId: string
   title: string
   body: string
-  type: "deadline" | "habit_reminder" | "streak_milestone" | "task_complete"
+  type: "deadline" | "urgent_deadline" | "habit_reminder" | "streak_milestone" | "task_complete"
   data: Record<string, any>
   read: boolean
   createdAt: string
