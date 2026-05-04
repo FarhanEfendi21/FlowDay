@@ -131,12 +131,13 @@ export async function GET(request: NextRequest) {
 }
 
 async function sendUrgentDeadlineNotification(task: any) {
-  // Format time for display (extract time from due_date TIMESTAMPTZ)
+  // Format time for display (convert UTC to WIB timezone)
   const dueDateTime = new Date(task.due_date)
   const dueTime = dueDateTime.toLocaleTimeString('id-ID', { 
     hour: '2-digit', 
     minute: '2-digit',
-    hour12: false 
+    hour12: false,
+    timeZone: 'Asia/Jakarta' // Convert to WIB
   })
 
   console.log(`📤 Sending notification for task "${task.title}" to user ${task.user_id}`)
