@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
           completed
         )
       `)
-      .eq("deleted", false)
+      .is("deleted_at", null)
 
     if (habitsError) {
       console.error("Error fetching habits:", habitsError)

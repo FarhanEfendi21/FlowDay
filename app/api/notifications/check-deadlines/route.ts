@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       .from("tasks")
       .select("id, title, due_date, user_id, subject")
       .eq("status", "todo")
-      .eq("deleted", false)
+      .is("deleted_at", null)
       .gte("due_date", tomorrowStart)
       .lte("due_date", tomorrowEnd)
 

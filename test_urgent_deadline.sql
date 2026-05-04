@@ -2,14 +2,13 @@
 -- Jalankan di Supabase SQL Editor
 
 -- Insert task dengan deadline 2 jam dari sekarang
-INSERT INTO tasks (user_id, title, subject, due_date, status, deleted)
+INSERT INTO tasks (user_id, title, subject, due_date, status)
 VALUES (
   (SELECT id FROM auth.users LIMIT 1), -- Ambil user pertama
   'Test Urgent Deadline - 2 Jam Lagi',
   'Testing',
   NOW() + INTERVAL '2 hours', -- 2 jam dari sekarang (TIMESTAMPTZ)
-  'todo',
-  false
+  'todo'
 );
 
 -- Cek task yang baru dibuat
