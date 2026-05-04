@@ -12,7 +12,11 @@
 5. [Activity Diagram: Soft Delete & Hard Delete](#5-activity-diagram-soft-delete--hard-delete)
 6. [Activity Diagram: Search & Filter Tasks](#6-activity-diagram-search--filter-tasks)
 7. [Activity Diagram: View Analytics](#7-activity-diagram-view-analytics)
-8. [Activity Diagram: Complete System Flow](#8-activity-diagram-complete-system-flow)
+8. [Activity Diagram: Notification System](#8-activity-diagram-notification-system) ⭐ **NEW**
+9. [Activity Diagram: Enable Push Notifications](#9-activity-diagram-enable-push-notifications) ⭐ **NEW**
+10. [Activity Diagram: Send Deadline Notification (Cron)](#10-activity-diagram-send-deadline-notification-cron) ⭐ **NEW**
+11. [Activity Diagram: Configure Notification Preferences](#11-activity-diagram-configure-notification-preferences) ⭐ **NEW**
+12. [Activity Diagram: Complete System Flow](#12-activity-diagram-complete-system-flow)
 
 ---
 
@@ -414,7 +418,350 @@ graph TD
 
 ---
 
-## 8. Activity Diagram: Complete System Flow
+## 8. Activity Diagram: Notification System
+
+```mermaid
+graph TD
+    Start([Sistem Notifikasi Aktif]) --> ParallelCron{Cron Jobs Berjalan Paralel}
+    
+    %% DEADLINE NOTIFICATION CRON
+    ParallelCron -->|Daily 8 AM| CronDeadline[Cron: check-deadlines<br/>Berjalan Setiap Hari<br/>Pukul 08:00 WIB]
+    CronDeadline --> QueryDeadline[Query Tasks:<br/>WHERE due_date = CURRENT_DATE + 1<br/>AND status != 'done'<br/>AND deleted_at IS NULL]
+    QueryDeadline --> CheckDeadlineTasks{Ada Tasks<br/>Deadline Besok?}
+    CheckDeadlineTasks -->|Tidak| EndDeadline([Selesai - Deadline])
+    CheckDeadlineTasks -->|Ya| LoopDeadlineTasks[Loop Setiap Task]
+    LoopDeadlineTasks --> GetUserPrefs[Get User Preferences:<br/>deadline_reminders enabled?]
+    GetUserPrefs --> CheckDeadlineEnabled{Enabled?}
+    CheckDeadlineEnabled -->|Tidak| NextDeadlineTask[Next Task]
+    CheckDeadlineEnabled -->|Ya| GetFCMTokens[Get FCM Tokens<br/>untuk User]
+    GetFCMTokens --> CheckTokens{Ada Token?}
+    CheckTokens -->|Tidak| NextDeadlineTask
+    CheckTokens -->|Ya| SendDeadlineNotif[Send Push Notification:<br/>Deadline besok untuk task X]
+    SendDeadlineNotif --> SaveNotifHistory[INSERT INTO notifications<br/>type = 'deadline']
+    SaveNotifHistory --> UpdateTokenUsage[UPDATE fcm_tokens<br/>SET last_used_at = NOW]
+    UpdateTokenUsage --> NextDeadlineTask
+    NextDeadlineTask --> CheckMoreDeadline{Ada Task Lagi?}
+    CheckMoreDeadline -->|Ya| LoopDeadlineTasks
+    CheckMoreDeadline -->|Tidak| EndDeadline
+    
+    %% URGENT DEADLINE CRON
+    ParallelCron -->|Every 6 Hours| CronUrgent[Cron: check-urgent-deadlines<br/>Berjalan Setiap 6 Jam]
+    CronUrgent --> QueryUrgent[Query Tasks:<br/>WHERE due_date <= NOW + 6 hours<br/>AND status != 'done'<br/>AND deleted_at IS NULL]
+    QueryUrgent --> CheckUrgentTasks{Ada Tasks<br/>Urgent?}
+    CheckUrgentTasks -->|Tidak| EndUrgent([Selesai - Urgent])
+    CheckUrgentTasks -->|Ya| LoopUrgentTasks[Loop Setiap Task]
+    LoopUrgentTasks --> GetUrgentPrefs[Get User Preferences:<br/>deadline_reminders enabled?]
+    GetUrgentPrefs --> CheckUrgentEnabled{Enabled?}
+    CheckUrgentEnabled -->|Tidak| NextUrgentTask[Next Task]
+    CheckUrgentEnabled -->|Ya| GetUrgentTokens[Get FCM Tokens]
+    GetUrgentTokens --> CheckUrgentTokens{Ada Token?}
+    CheckUrgentTokens -->|Tidak| NextUrgentTask
+    CheckUrgentTokens -->|Ya| SendUrgentNotif[Send Push Notification:<br/>URGENT Deadline 6 jam lagi]
+    SendUrgentNotif --> SaveUrgentHistory[INSERT INTO notifications<br/>type = 'deadline']
+    SaveUrgentHistory --> UpdateUrgentToken[UPDATE last_used_at]
+    UpdateUrgentToken --> NextUrgentTask
+    NextUrgentTask --> CheckMoreUrgent{Ada Task Lagi?}
+    CheckMoreUrgent -->|Ya| LoopUrgentTasks
+    CheckMoreUrgent -->|Tidak| EndUrgent
+    
+    %% HABIT REMINDER CRON
+    ParallelCron -->|Daily at User Time| CronHabit[Cron: check-habits<br/>Berjalan Sesuai<br/>User reminder_time]
+    CronHabit --> QueryHabits[Query Habits:<br/>WHERE deleted_at IS NULL<br/>AND user active]
+    QueryHabits --> CheckHabits{Ada Habits?}
+    CheckHabits -->|Tidak| EndHabit([Selesai - Habit])
+    CheckHabits -->|Ya| LoopHabits[Loop Setiap Habit]
+    LoopHabits --> CheckHabitLog[Check habit_logs:<br/>Sudah complete hari ini?]
+    CheckHabitLog --> IsCompleted{Completed?}
+    IsCompleted -->|Ya| NextHabit[Next Habit]
+    IsCompleted -->|Tidak| GetHabitPrefs[Get User Preferences:<br/>habit_reminders enabled?]
+    GetHabitPrefs --> CheckHabitEnabled{Enabled?}
+    CheckHabitEnabled -->|Tidak| NextHabit
+    CheckHabitEnabled -->|Ya| GetHabitTokens[Get FCM Tokens]
+    GetHabitTokens --> CheckHabitTokens{Ada Token?}
+    CheckHabitTokens -->|Tidak| NextHabit
+    CheckHabitTokens -->|Ya| SendHabitNotif[Send Push Notification:<br/>Jangan lupa habit X hari ini]
+    SendHabitNotif --> SaveHabitHistory[INSERT INTO notifications<br/>type = 'habit_reminder']
+    SaveHabitHistory --> UpdateHabitToken[UPDATE last_used_at]
+    UpdateHabitToken --> NextHabit
+    NextHabit --> CheckMoreHabits{Ada Habit Lagi?}
+    CheckMoreHabits -->|Ya| LoopHabits
+    CheckMoreHabits -->|Tidak| EndHabit
+    
+    %% TOKEN CLEANUP CRON
+    ParallelCron -->|Weekly| CronCleanup[Cron: cleanup-tokens<br/>Berjalan Setiap Minggu]
+    CronCleanup --> QueryOldTokens[Query FCM Tokens:<br/>WHERE last_used_at < NOW - 30 days]
+    QueryOldTokens --> CheckOldTokens{Ada Token Lama?}
+    CheckOldTokens -->|Tidak| EndCleanup([Selesai - Cleanup])
+    CheckOldTokens -->|Ya| DeleteOldTokens[DELETE FROM fcm_tokens<br/>WHERE last_used_at < NOW - 30 days]
+    DeleteOldTokens --> LogCleanup[Log: X tokens dihapus]
+    LogCleanup --> EndCleanup
+    
+    %% REAL-TIME NOTIFICATIONS
+    ParallelCron -->|Real-time| RealTimeEvents[Event-Driven Notifications]
+    RealTimeEvents --> EventChoice{Event Type}
+    
+    EventChoice -->|Task Complete| TaskDone[User Mark Task as Done]
+    TaskDone --> CheckTaskNotif[Check Preferences:<br/>task_complete enabled?]
+    CheckTaskNotif --> TaskNotifEnabled{Enabled?}
+    TaskNotifEnabled -->|Ya| SendTaskNotif[Send Notification:<br/>Selamat task X selesai]
+    TaskNotifEnabled -->|Tidak| EndRealTime([Selesai - Real-time])
+    SendTaskNotif --> SaveTaskNotif[INSERT INTO notifications<br/>type = 'task_complete']
+    SaveTaskNotif --> EndRealTime
+    
+    EventChoice -->|Streak Milestone| StreakAchieved[User Reach Streak Milestone<br/>7, 30, 100 days]
+    StreakAchieved --> CheckStreakNotif[Check Preferences:<br/>streak_milestones enabled?]
+    CheckStreakNotif --> StreakNotifEnabled{Enabled?}
+    StreakNotifEnabled -->|Ya| SendStreakNotif[Send Notification:<br/>Streak X hari tercapai]
+    StreakNotifEnabled -->|Tidak| EndRealTime
+    SendStreakNotif --> SaveStreakNotif[INSERT INTO notifications<br/>type = 'streak_milestone']
+    SaveStreakNotif --> EndRealTime
+
+    style Start fill:#e1f5e1
+    style EndDeadline fill:#e1f5e1
+    style EndUrgent fill:#e1f5e1
+    style EndHabit fill:#e1f5e1
+    style EndCleanup fill:#e1f5e1
+    style EndRealTime fill:#e1f5e1
+    style CronDeadline fill:#d1ecf1
+    style CronUrgent fill:#fff3cd
+    style CronHabit fill:#d4edda
+    style CronCleanup fill:#f8d7da
+```
+
+**Penjelasan:**
+- **4 Cron Jobs** berjalan paralel untuk automated notifications
+- **Deadline Notification**: Cek tasks yang deadline besok, kirim notif pukul 8 pagi
+- **Urgent Deadline**: Cek tasks yang deadline dalam 6 jam, kirim notif setiap 6 jam
+- **Habit Reminder**: Cek habits yang belum complete hari ini, kirim sesuai user's reminder_time
+- **Token Cleanup**: Hapus FCM tokens yang tidak digunakan >30 hari (weekly)
+- **Real-time Notifications**: Event-driven untuk task complete dan streak milestone
+- Semua notifikasi cek user preferences terlebih dahulu
+- History disimpan di tabel `notifications`
+
+---
+
+## 9. Activity Diagram: Enable Push Notifications
+
+```mermaid
+graph TD
+    Start([User Buka Aplikasi]) --> CheckPermission{Browser Support<br/>Push Notifications?}
+    CheckPermission -->|Tidak| ShowUnsupported[Tampilkan Pesan:<br/>Browser tidak support<br/>push notifications]
+    ShowUnsupported --> End([Selesai])
+    
+    CheckPermission -->|Ya| CheckExisting{FCM Token<br/>Sudah Ada?}
+    CheckExisting -->|Ya| TokenValid[Token Valid<br/>Notifikasi Aktif]
+    TokenValid --> End
+    
+    CheckExisting -->|Tidak| ShowPrompt[Tampilkan Prompt:<br/>Aktifkan Notifikasi?]
+    ShowPrompt --> UserChoice{User Klik<br/>Aktifkan?}
+    UserChoice -->|Tidak| Dismiss[User Dismiss Prompt]
+    Dismiss --> End
+    
+    UserChoice -->|Ya| RequestPermission[Request Browser Permission:<br/>Notification.requestPermission]
+    RequestPermission --> BrowserPrompt[Browser Tampilkan<br/>Native Permission Dialog]
+    BrowserPrompt --> PermissionResult{User Response}
+    
+    PermissionResult -->|Denied| ShowDenied[Tampilkan Pesan:<br/>Notifikasi diblokir<br/>Cara enable di settings]
+    ShowDenied --> End
+    
+    PermissionResult -->|Granted| InitFirebase[Initialize Firebase<br/>Cloud Messaging]
+    InitFirebase --> GetToken[Request FCM Token:<br/>getToken dari Firebase]
+    GetToken --> TokenReceived{Token<br/>Berhasil?}
+    
+    TokenReceived -->|Tidak| ShowError[Tampilkan Error:<br/>Gagal mendapatkan token]
+    ShowError --> End
+    
+    TokenReceived -->|Ya| GetDeviceInfo[Collect Device Info:<br/>- Browser<br/>- OS<br/>- Device Type]
+    GetDeviceInfo --> SaveToken[POST /api/notifications/register<br/>Save Token ke Database]
+    SaveToken --> InsertDB[INSERT INTO fcm_tokens<br/>user_id, token, device_info]
+    InsertDB --> CheckDuplicate{Token Sudah<br/>Ada?}
+    
+    CheckDuplicate -->|Ya| UpdateExisting[UPDATE fcm_tokens<br/>SET updated_at = NOW<br/>WHERE token = ?]
+    CheckDuplicate -->|Tidak| InsertNew[INSERT new token]
+    
+    UpdateExisting --> ShowSuccess[Tampilkan Toast:<br/>Notifikasi berhasil diaktifkan]
+    InsertNew --> ShowSuccess
+    ShowSuccess --> SendTestNotif[Kirim Test Notification:<br/>Selamat datang di FlowDay]
+    SendTestNotif --> End
+
+    style Start fill:#e1f5e1
+    style End fill:#e1f5e1
+    style ShowSuccess fill:#e1f5e1
+    style ShowDenied fill:#ffe1e1
+    style ShowError fill:#ffe1e1
+    style ShowUnsupported fill:#fff3cd
+```
+
+**Penjelasan:**
+1. **Check Browser Support**: Validasi browser support push notifications
+2. **Check Existing Token**: Cek apakah user sudah punya FCM token aktif
+3. **Request Permission**: Tampilkan prompt untuk aktifkan notifikasi
+4. **Browser Permission**: Native browser dialog untuk izin notifikasi
+5. **Get FCM Token**: Request token dari Firebase Cloud Messaging
+6. **Save to Database**: Simpan token ke tabel `fcm_tokens` dengan device info
+7. **Handle Duplicate**: Update jika token sudah ada, insert jika baru
+8. **Test Notification**: Kirim welcome notification untuk konfirmasi
+
+---
+
+## 10. Activity Diagram: Send Deadline Notification (Cron)
+
+```mermaid
+graph TD
+    Start([Cron Job Triggered<br/>Daily at 8:00 AM WIB]) --> LogStart[Log: Cron job started]
+    LogStart --> QueryTasks[Query Database:<br/>SELECT * FROM tasks<br/>WHERE due_date = CURRENT_DATE + INTERVAL '1 day'<br/>AND status != 'done'<br/>AND deleted_at IS NULL]
+    QueryTasks --> CheckResults{Ada Tasks<br/>yang Deadline<br/>Besok?}
+    
+    CheckResults -->|Tidak| LogNoTasks[Log: No tasks found]
+    LogNoTasks --> EndSuccess([Cron Selesai - Success])
+    
+    CheckResults -->|Ya| GroupByUser[GROUP BY user_id<br/>untuk Batch Processing]
+    GroupByUser --> LoopUsers[Loop Setiap User]
+    
+    LoopUsers --> GetPreferences[Query Preferences:<br/>SELECT * FROM notification_preferences<br/>WHERE user_id = ?]
+    GetPreferences --> CheckEnabled{deadline_reminders<br/>= TRUE?}
+    
+    CheckEnabled -->|Tidak| LogDisabled[Log: User disabled deadline reminders]
+    LogDisabled --> NextUser[Next User]
+    
+    CheckEnabled -->|Ya| GetTokens[Query FCM Tokens:<br/>SELECT * FROM fcm_tokens<br/>WHERE user_id = ?<br/>AND last_used_at > NOW - 30 days]
+    GetTokens --> CheckTokens{Ada Token<br/>Aktif?}
+    
+    CheckTokens -->|Tidak| LogNoToken[Log: No active tokens for user]
+    LogNoToken --> NextUser
+    
+    CheckTokens -->|Ya| PrepareNotif[Prepare Notification Payload:<br/>title: Pengingat Deadline<br/>body: X tugas deadline besok<br/>data: task_ids, user_id]
+    PrepareNotif --> LoopTokens[Loop Setiap Token]
+    
+    LoopTokens --> SendFCM[Send via Firebase Admin SDK:<br/>admin.messaging.send]
+    SendFCM --> FCMResponse{FCM Response}
+    
+    FCMResponse -->|Success| LogSuccess[Log: Notification sent successfully]
+    LogSuccess --> SaveHistory[INSERT INTO notifications<br/>user_id, title, body, type='deadline']
+    SaveHistory --> UpdateToken[UPDATE fcm_tokens<br/>SET last_used_at = NOW<br/>WHERE token = ?]
+    UpdateToken --> NextToken[Next Token]
+    
+    FCMResponse -->|Error: Invalid Token| LogInvalidToken[Log: Invalid token detected]
+    LogInvalidToken --> DeleteToken[DELETE FROM fcm_tokens<br/>WHERE token = ?]
+    DeleteToken --> NextToken
+    
+    FCMResponse -->|Error: Other| LogError[Log: FCM error]
+    LogError --> NextToken
+    
+    NextToken --> CheckMoreTokens{Ada Token<br/>Lagi?}
+    CheckMoreTokens -->|Ya| LoopTokens
+    CheckMoreTokens -->|Tidak| NextUser
+    
+    NextUser --> CheckMoreUsers{Ada User<br/>Lagi?}
+    CheckMoreUsers -->|Ya| LoopUsers
+    CheckMoreUsers -->|Tidak| LogComplete[Log: Cron job completed<br/>X notifications sent]
+    LogComplete --> EndSuccess
+
+    style Start fill:#e1f5e1
+    style EndSuccess fill:#e1f5e1
+    style LogSuccess fill:#e1f5e1
+    style LogError fill:#ffe1e1
+    style LogInvalidToken fill:#fff3cd
+```
+
+**Penjelasan Cron Job Flow:**
+1. **Trigger**: Cron job berjalan setiap hari pukul 8 pagi (via Vercel Cron)
+2. **Query Tasks**: Ambil semua tasks yang deadline besok dan belum selesai
+3. **Group by User**: Batch processing per user untuk efisiensi
+4. **Check Preferences**: Validasi user enable deadline reminders
+5. **Get Tokens**: Ambil FCM tokens yang aktif (digunakan <30 hari terakhir)
+6. **Send Notification**: Kirim via Firebase Admin SDK
+7. **Handle Response**:
+   - Success: Save history, update last_used_at
+   - Invalid Token: Delete token dari database
+   - Other Error: Log error untuk debugging
+8. **Logging**: Comprehensive logging untuk monitoring
+
+---
+
+## 11. Activity Diagram: Configure Notification Preferences
+
+```mermaid
+graph TD
+    Start([User Buka Settings]) --> ClickNotif[Klik Tab<br/>Notification Settings]
+    ClickNotif --> LoadPrefs[Load Current Preferences:<br/>SELECT * FROM notification_preferences<br/>WHERE user_id = auth.uid]
+    LoadPrefs --> CheckExists{Preferences<br/>Exists?}
+    
+    CheckExists -->|Tidak| CreateDefault[Create Default Preferences:<br/>INSERT INTO notification_preferences<br/>All enabled, reminder_time = 20:00]
+    CheckExists -->|Ya| DisplayForm[Tampilkan Form dengan<br/>Current Values]
+    CreateDefault --> DisplayForm
+    
+    DisplayForm --> UserModify{User Modifikasi<br/>Settings}
+    
+    %% TOGGLE DEADLINE REMINDERS
+    UserModify -->|Toggle Deadline| ToggleDeadline[Toggle Switch:<br/>deadline_reminders]
+    ToggleDeadline --> UpdateDeadline[Update State:<br/>deadline_reminders = !current]
+    UpdateDeadline --> UserModify
+    
+    %% TOGGLE HABIT REMINDERS
+    UserModify -->|Toggle Habit| ToggleHabit[Toggle Switch:<br/>habit_reminders]
+    ToggleHabit --> UpdateHabit[Update State:<br/>habit_reminders = !current]
+    UpdateHabit --> UserModify
+    
+    %% TOGGLE STREAK MILESTONES
+    UserModify -->|Toggle Streak| ToggleStreak[Toggle Switch:<br/>streak_milestones]
+    ToggleStreak --> UpdateStreak[Update State:<br/>streak_milestones = !current]
+    UpdateStreak --> UserModify
+    
+    %% TOGGLE TASK COMPLETE
+    UserModify -->|Toggle Task Complete| ToggleTask[Toggle Switch:<br/>task_complete]
+    ToggleTask --> UpdateTask[Update State:<br/>task_complete = !current]
+    UpdateTask --> UserModify
+    
+    %% CHANGE REMINDER TIME
+    UserModify -->|Change Time| SelectTime[Select Time Picker:<br/>Pilih Waktu Pengingat]
+    SelectTime --> UpdateTime[Update State:<br/>reminder_time = selected]
+    UpdateTime --> UserModify
+    
+    %% SAVE CHANGES
+    UserModify -->|Klik Simpan| ValidateForm{Form Valid?}
+    ValidateForm -->|Tidak| ShowValidationError[Tampilkan Error:<br/>Waktu harus valid]
+    ShowValidationError --> UserModify
+    
+    ValidateForm -->|Ya| SaveToDB[UPDATE notification_preferences<br/>SET deadline_reminders = ?<br/>habit_reminders = ?<br/>streak_milestones = ?<br/>task_complete = ?<br/>reminder_time = ?<br/>updated_at = NOW<br/>WHERE user_id = auth.uid]
+    SaveToDB --> TriggerUpdate[Database Trigger:<br/>Update updated_at timestamp]
+    TriggerUpdate --> InvalidateCache[Invalidate React Query Cache:<br/>Refetch preferences]
+    InvalidateCache --> ShowSuccess[Tampilkan Toast:<br/>Pengaturan berhasil disimpan]
+    ShowSuccess --> UpdateUI[Update UI dengan<br/>New Preferences]
+    UpdateUI --> End([Selesai])
+    
+    %% CANCEL
+    UserModify -->|Klik Batal| ConfirmCancel{Ada Perubahan<br/>Belum Disimpan?}
+    ConfirmCancel -->|Tidak| End
+    ConfirmCancel -->|Ya| ShowConfirm[Tampilkan Dialog:<br/>Buang perubahan?]
+    ShowConfirm --> UserConfirm{User Konfirmasi?}
+    UserConfirm -->|Tidak| UserModify
+    UserConfirm -->|Ya| ResetForm[Reset Form ke<br/>Original Values]
+    ResetForm --> End
+
+    style Start fill:#e1f5e1
+    style End fill:#e1f5e1
+    style ShowSuccess fill:#e1f5e1
+    style ShowValidationError fill:#ffe1e1
+    style ShowConfirm fill:#fff3cd
+```
+
+**Penjelasan:**
+1. **Load Preferences**: Ambil current preferences dari database
+2. **Create Default**: Jika belum ada, create dengan default values (all enabled, 8 PM)
+3. **Toggle Switches**: User bisa enable/disable per notification type:
+   - Deadline Reminders
+   - Habit Reminders
+   - Streak Milestones
+   - Task Complete
+4. **Change Time**: User bisa set custom reminder time untuk habit reminders
+5. **Save to Database**: Update preferences dengan RLS filter
+6. **Invalidate Cache**: React Query refetch untuk update UI
+7. **Cancel Handling**: Konfirmasi jika ada unsaved changes
+
+---
+
+## 12. Activity Diagram: Complete System Flow
 
 ```mermaid
 graph TD
@@ -533,7 +880,7 @@ graph TD
 
 ## 📊 SUMMARY
 
-### Total Activity Diagrams: 8 Diagrams
+### Total Activity Diagrams: 12 Diagrams (4 NEW)
 
 1. ✅ **User Registration** - Proses pendaftaran user baru
 2. ✅ **User Login** - Proses autentikasi dan session management
@@ -542,7 +889,11 @@ graph TD
 5. ✅ **Soft Delete & Hard Delete** - Trash management dengan restore
 6. ✅ **Search & Filter Tasks** - Real-time search dan multiple filters
 7. ✅ **View Analytics** - Parallel queries untuk dashboard analytics
-8. ✅ **Complete System Flow** - End-to-end user journey
+8. ✅ **Notification System** ⭐ **NEW** - Overview sistem notifikasi lengkap
+9. ✅ **Enable Push Notifications** ⭐ **NEW** - User enable notifikasi di browser
+10. ✅ **Send Deadline Notification (Cron)** ⭐ **NEW** - Automated cron job flow
+11. ✅ **Configure Notification Preferences** ⭐ **NEW** - User settings untuk notifikasi
+12. ✅ **Complete System Flow** - End-to-end user journey
 
 ### Key Features Covered:
 - ✅ Authentication & Authorization
@@ -555,6 +906,20 @@ graph TD
 - ✅ Real-time Updates
 - ✅ Error Handling
 - ✅ User Experience Flow
+- ✅ **Push Notifications** ⭐ **NEW**
+- ✅ **Cron Jobs** ⭐ **NEW**
+- ✅ **Firebase Cloud Messaging** ⭐ **NEW**
+- ✅ **User Preferences** ⭐ **NEW**
+- ✅ **Automated Reminders** ⭐ **NEW**
+
+### Notification System Features:
+- ✅ **4 Cron Jobs**: Deadline, Urgent, Habit, Cleanup
+- ✅ **5 Notification Types**: deadline, urgent_deadline, habit_reminder, streak_milestone, task_complete
+- ✅ **User Preferences**: Enable/disable per type, custom reminder time
+- ✅ **FCM Integration**: Firebase Cloud Messaging untuk push notifications
+- ✅ **Token Management**: Auto-cleanup inactive tokens
+- ✅ **Notification History**: Semua notifikasi disimpan di database
+- ✅ **Real-time Events**: Event-driven notifications untuk task complete & streak milestone
 
 ---
 
@@ -574,5 +939,7 @@ Semua diagram menggunakan **Mermaid syntax** yang bisa di-render di:
 ---
 
 **Dibuat pada**: 1 Mei 2026  
+**Updated**: 4 Mei 2026 (Added Notification System)  
 **Project**: FlowDay - Task & Habit Management System  
-**Format**: Mermaid Flowchart Diagrams
+**Format**: Mermaid Flowchart Diagrams  
+**Total Diagrams**: 12 (8 Core + 4 Notification System)

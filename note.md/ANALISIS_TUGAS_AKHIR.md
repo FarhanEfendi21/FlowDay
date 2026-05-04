@@ -157,7 +157,7 @@ Ini adalah pendekatan yang valid dalam ERD modern, terutama untuk aplikasi denga
 
 **STATUS: MEMENUHI (LEBIH DARI MINIMAL)**
 
-**Tabel yang Ada: 5 Tabel Utama**
+**Tabel yang Ada: 9 Tabel Utama** (6 Core + 3 Notification System)
 
 #### Tabel 1: **profiles**
 ```sql
@@ -246,7 +246,67 @@ CREATE TABLE public.user_subjects (
 - CHECK (char_length(name) BETWEEN 1 AND 100)
 - UNIQUE (user_id, name) - satu user tidak bisa punya mata kuliah dengan nama sama
 
-**Total Constraints: 15+ constraints** (jauh melebihi minimal 1)
+#### Tabel 6: **fcm_tokens** ⭐ NEW
+```sql
+CREATE TABLE public.fcm_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  device_info JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_used_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+**Constraints:**
+- PRIMARY KEY (id)
+- FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+- UNIQUE (token) - satu token hanya bisa terdaftar sekali
+
+#### Tabel 7: **notifications** ⭐ NEW
+```sql
+CREATE TABLE public.notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  type TEXT NOT NULL,
+  data JSONB DEFAULT '{}',
+  read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+**Constraints:**
+- PRIMARY KEY (id)
+- FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+- NOT NULL constraints pada title, body, type
+
+**Notification Types:**
+- `deadline` - Reminder untuk task deadline
+- `habit_reminder` - Reminder untuk complete habit
+- `streak_milestone` - Notifikasi saat mencapai streak milestone
+- `task_complete` - Notifikasi saat task selesai
+
+#### Tabel 8: **notification_preferences** ⭐ NEW
+```sql
+CREATE TABLE public.notification_preferences (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+  deadline_reminders BOOLEAN DEFAULT TRUE,
+  habit_reminders BOOLEAN DEFAULT TRUE,
+  streak_milestones BOOLEAN DEFAULT TRUE,
+  task_complete BOOLEAN DEFAULT TRUE,
+  reminder_time TIME DEFAULT '20:00:00',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+**Constraints:**
+- PRIMARY KEY (id)
+- FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+- UNIQUE (user_id) - satu user hanya punya 1 preference record
+
+**Total Constraints: 25+ constraints** (jauh melebihi minimal 1)
 
 ---
 
@@ -841,6 +901,15 @@ Project ini memiliki beberapa fitur tambahan yang melampaui requirement minimal:
    - Efficient JOIN queries
    - Triggers untuk auto-update
 
+7. **Push Notifications System** ⭐
+   - Firebase Cloud Messaging (FCM)
+   - Deadline reminders (daily & urgent)
+   - Habit reminders (customizable time)
+   - Streak milestone notifications
+   - Notification preferences per user
+   - Notification history & read status
+   - Cron jobs via Vercel
+
 ---
 
 ## 📝 REKOMENDASI UNTUK PRESENTASI
@@ -859,14 +928,15 @@ Saat presentasi Tugas Akhir, fokuskan pada:
 
 ## 📊 STATISTIK PROJECT
 
-- **Total Tabel**: 5 tabel utama
-- **Total Constraints**: 15+ constraints
-- **Total RPC Functions**: 7 functions
-- **Total Migrations**: 5 migration files
+- **Total Tabel**: 9 tabel utama (6 core + 3 notification)
+- **Total Constraints**: 25+ constraints
+- **Total RPC Functions**: 9+ functions
+- **Total Migrations**: 9 migration files
 - **Total Pages**: 8+ pages
-- **Total API Services**: 5 feature modules
-- **Lines of SQL**: ~500+ lines
-- **Lines of TypeScript**: ~3000+ lines
+- **Total API Services**: 5 feature modules + notification APIs
+- **Total API Routes**: 5 notification endpoints
+- **Lines of SQL**: ~800+ lines
+- **Lines of TypeScript**: ~4000+ lines
 
 ---
 
