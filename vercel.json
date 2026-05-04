@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/notifications/check-urgent-deadlines",
-      "schedule": "0 6 * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/notifications/check-habits",
