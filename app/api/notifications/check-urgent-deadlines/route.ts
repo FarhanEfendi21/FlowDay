@@ -71,10 +71,13 @@ export async function GET(request: NextRequest) {
       const timeDiff = dueDateTime.getTime() - now.getTime()
       const hoursUntilDue = timeDiff / (1000 * 60 * 60)
 
-      console.log(`Task "${task.title}": ${hoursUntilDue.toFixed(2)} hours until deadline`)
+      const passesFilter = hoursUntilDue >= 1.5 && hoursUntilDue <= 2.5
+      
+      console.log(`Task "${task.title}": ${hoursUntilDue.toFixed(2)} hours until deadline - Filter: ${passesFilter ? 'PASS ✅' : 'FAIL ❌'} (range: 1.5-2.5)`)
 
       // Check if between 1.5 and 2.5 hours (to avoid duplicate notifications)
-      return hoursUntilDue > 1.5 && hoursUntilDue <= 2.5
+      // Using >= instead of > to include tasks at exactly 1.5 hours
+      return passesFilter
     })
 
     console.log(`Found ${urgentTasks.length} urgent tasks out of ${tasks.length} total`)
