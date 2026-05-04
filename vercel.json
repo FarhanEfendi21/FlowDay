@@ -2,11 +2,15 @@
   "crons": [
     {
       "path": "/api/notifications/check-deadlines",
-      "schedule": "0 9 * * *"
+      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/notifications/check-habits",
-      "schedule": "0 20 * * *"
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/notifications/cleanup-tokens",
+      "schedule": "0 19 * * 6"
     }
   ],
   "headers": [

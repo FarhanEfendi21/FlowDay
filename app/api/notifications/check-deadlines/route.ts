@@ -104,6 +104,8 @@ async function sendDeadlineNotification(task: any) {
   })
 
   if (!response.ok) {
+    const error = await response.text()
+    console.error(`Failed to send notification for task ${task.id}:`, error)
     throw new Error(`Failed to send notification for task ${task.id}`)
   }
 
