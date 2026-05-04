@@ -55,6 +55,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    console.log(`Found ${tasks?.length || 0} tasks in 2-hour window`)
+
     if (!tasks || tasks.length === 0) {
       return NextResponse.json({
         message: "No urgent deadlines found",
@@ -67,6 +69,8 @@ export async function GET(request: NextRequest) {
       const dueDateTime = new Date(task.due_date)
       const timeDiff = dueDateTime.getTime() - now.getTime()
       const hoursUntilDue = timeDiff / (1000 * 60 * 60)
+
+      console.log(`Task "${task.title}": ${hoursUntilDue.toFixed(2)} hours until deadline`)
 
       // Check if between 1.5 and 2.5 hours (to avoid duplicate notifications)
       return hoursUntilDue > 1.5 && hoursUntilDue <= 2.5
