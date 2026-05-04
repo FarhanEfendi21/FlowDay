@@ -11,6 +11,7 @@ import {
   Trash2,
   CheckCheck,
   Loader2,
+  BellRing,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -21,6 +22,7 @@ import {
   useMarkAsRead,
   useMarkAllAsRead,
   useDeleteNotification,
+  useFCM,
   type Notification,
 } from "@/features/notifications"
 import { cn } from "@/lib/utils"
@@ -35,9 +37,35 @@ export function NotificationList({ onClose }: NotificationListProps) {
   const markAsRead = useMarkAsRead()
   const markAllAsRead = useMarkAllAsRead()
   const deleteNotification = useDeleteNotification()
+  const { permission, isSupported, requestPermission } = useFCM()
+
+  const handleEnableNotifications = async () => {
+    try {
+      const token = await requestPermission()
+      if (token) {
+        toast.success("Notifikasi berhasil diaktifkan! 🎉")
+      } else {
+        toast.error("Gagal mengaktifkan notifikasi. Coba lagi.")
+      }
+    } catch (e) {
+      toast.error("Terjadi kesalahan saat mengaktifkan notifikasi")
+    }
+  }
 
   const handleTestNotification = async () => {
     if (!user) return
+    
+    // Check if notifications are enabled first
+    if (permission !== "granted") {
+      toast.error("Aktifkan notifikasi terlebih dahulu!", {
+        action: {
+          label: "Aktifkan",
+          onClick: handleEnableNotifications,
+        },
+      })
+      return
+    }
+
     try {
       toast.loading("Mengirim test notifikasi...", { id: "test-notif" })
       const res = await fetch("/api/notifications/send", {
@@ -252,32 +280,74 @@ export function NotificationList({ onClose }: NotificationListProps) {
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
-        ) : notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full py-20 text-center px-4">
-            <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle2 className="h-8 w-8 text-primary/60" />
-            </div>
-            <h4 className="font-semibold text-lg text-foreground/90">Semua Beres!</h4>
-            <p className="text-sm text-muted-foreground mt-2 max-w-[220px] leading-relaxed">
-              Bagus sekali, tidak ada tugas yang mendesak. Selamat beristirahat!
-            </p>
-          </div>
         ) : (
-          <div className="pb-4">
-            {renderGroup("Hari Ini", groupedNotifications.today)}
-            {renderGroup("Kemarin", groupedNotifications.yesterday)}
-            {renderGroup("Terdahulu", groupedNotifications.older)}
-          </div>
+          <>
+            {/* Enable Notifications Banner - Show if not granted */}
+            {isSupported && permission !== "granted" && (
+              <div className="m-4 p-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20">
+                    <BellRing className="h-5 w-5 text-primary animate-pulse" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-bold text-foreground">Aktifkan Notifikasi Push</h4>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      Dapatkan reminder otomatis untuk deadline dan habit kamu. Jangan sampai terlewat!
+                    </p>
+                    <Button 
+                      size="sm" 
+                      onClick={handleEnableNotifications}
+                      className="mt-3 h-8 text-xs font-semibold shadow-sm"
+                    >
+                      <BellRing className="w-3.5 h-3.5 mr-1.5" />
+                      Aktifkan Sekarang
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {notifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full py-20 text-center px-4">
+                <div className="h-16 w-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                  <CheckCircle2 className="h-8 w-8 text-primary/60" />
+                </div>
+                <h4 className="font-semibold text-lg text-foreground/90">Semua Beres!</h4>
+                <p className="text-sm text-muted-foreground mt-2 max-w-[220px] leading-relaxed">
+                  Bagus sekali, tidak ada tugas yang mendesak. Selamat beristirahat!
+                </p>
+              </div>
+            ) : (
+              <div className="pb-4">
+                {renderGroup("Hari Ini", groupedNotifications.today)}
+                {renderGroup("Kemarin", groupedNotifications.yesterday)}
+                {renderGroup("Terdahulu", groupedNotifications.older)}
+              </div>
+            )}
+          </>
         )}
       </ScrollArea>
       <div className="p-3 border-t mt-auto bg-background">
-        <Button 
-          variant="outline" 
-          className="w-full text-xs font-semibold shadow-sm hover:bg-primary/5 hover:text-primary transition-colors" 
-          onClick={handleTestNotification}
-        >
-          <Bell className="w-3.5 h-3.5 mr-2" /> Kirim Test Notifikasi
-        </Button>
+        {permission === "granted" ? (
+          <Button 
+            variant="outline" 
+            className="w-full text-xs font-semibold shadow-sm hover:bg-primary/5 hover:text-primary transition-colors" 
+            onClick={handleTestNotification}
+          >
+            <Bell className="w-3.5 h-3.5 mr-2" /> Kirim Test Notifikasi
+          </Button>
+        ) : isSupported ? (
+          <Button 
+            className="w-full text-xs font-semibold shadow-sm" 
+            onClick={handleEnableNotifications}
+          >
+            <BellRing className="w-3.5 h-3.5 mr-2" /> Aktifkan Notifikasi
+          </Button>
+        ) : (
+          <p className="text-xs text-center text-muted-foreground py-2">
+            Browser tidak mendukung notifikasi push
+          </p>
+        )}
       </div>
     </div>
   )
