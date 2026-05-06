@@ -1,12 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { useTheme } from "next-themes"
+import { motion, useInView, useScroll, useTransform } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/logo"
-import { LightRays } from "@/components/ui/light-rays"
+import Galaxy from "@/components/ui/galaxy"
+import PixelBlast from "@/components/ui/pixel-blast"
 import LogoLoop from "@/components/ui/logo-loop"
+import CarouselSteps from "@/components/ui/carousel-steps"
 import { 
   CheckCircle2, 
   Calendar, 
@@ -15,7 +19,11 @@ import {
   ArrowRight,
   BookOpen,
   Clock,
-  Target
+  Target,
+  ChevronDown,
+  Plus,
+  Eye,
+  TrendingUp
 } from "lucide-react"
 import { 
   SiReact, 
@@ -31,11 +39,39 @@ import {
 export default function LandingPage() {
   const { theme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const heroRef = useRef(null)
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"]
+  })
+  
+  const galaxyOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0])
   
   // Wait for client-side mount to avoid hydration mismatch
   useEffect(() => {
     setMounted(true)
   }, [])
+  
+  const carouselSteps = [
+    {
+      id: 1,
+      title: "Tambah Tugas",
+      description: "Input tugas kuliah beserta deadline dan prioritasnya. Atur kategori berdasarkan mata kuliah.",
+      icon: <Plus className="carousel-icon" />
+    },
+    {
+      id: 2,
+      title: "Atur Habit",
+      description: "Tentukan kebiasaan harian yang ingin kamu bangun. Track progress dan streak harianmu.",
+      icon: <Eye className="carousel-icon" />
+    },
+    {
+      id: 3,
+      title: "Pantau Progress",
+      description: "Lihat statistik dan tetap konsisten setiap hari. Analisis produktivitasmu dengan visualisasi data.",
+      icon: <TrendingUp className="carousel-icon" />
+    }
+  ]
   
   const techStack = [
     { node: <SiReact className="w-12 h-12" />, title: "React", href: "https://react.dev" },
@@ -50,22 +86,48 @@ export default function LandingPage() {
   
   return (
     <div className="relative min-h-screen bg-background overflow-hidden">
-      {/* Animated Background */}
-      <div className="fixed inset-0 z-0">
-        <LightRays
-          raysOrigin="top-center"
-          raysColor={theme === "dark" ? "#3b82f6" : "#60a5fa"}
-          raysSpeed={0.8}
-          lightSpread={1.2}
-          rayLength={1.5}
-          followMouse={true}
-          mouseInfluence={0.15}
-          noiseAmount={0.05}
-          distortion={0.03}
-          fadeDistance={0.8}
-          saturation={0.7}
-        />
-      </div>
+      {/* Background - Galaxy for Dark Mode, PixelBlast for Light Mode */}
+      {mounted && (
+        <motion.div 
+          className="fixed inset-0 z-0 pointer-events-none"
+          style={{ opacity: galaxyOpacity }}
+        >
+          {theme === 'dark' ? (
+            <Galaxy
+              density={1.5}
+              glowIntensity={0.5}
+              saturation={0.6}
+              hueShift={220}
+              mouseRepulsion={true}
+              mouseInteraction={true}
+              twinkleIntensity={0.4}
+              rotationSpeed={0.05}
+              starSpeed={0.3}
+              transparent={true}
+            />
+          ) : (
+            <PixelBlast
+              variant="circle"
+              pixelSize={6}
+              color="#8B5CF6"
+              patternScale={3}
+              patternDensity={1.2}
+              pixelSizeJitter={0.5}
+              enableRipples
+              rippleSpeed={0.4}
+              rippleThickness={0.12}
+              rippleIntensityScale={1.5}
+              liquid
+              liquidStrength={0.12}
+              liquidRadius={1.2}
+              liquidWobbleSpeed={5}
+              speed={0.6}
+              edgeFade={0.25}
+              transparent
+            />
+          )}
+        </motion.div>
+      )}
 
       {/* Content */}
       <div className="relative z-10">
@@ -99,23 +161,51 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="relative pt-32 pb-20 md:pt-40 md:pb-32">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mx-auto max-w-3xl text-center">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground">
+      {/* Hero Section - Full Height */}
+      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center">
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <motion.div 
+            className="mx-auto max-w-3xl text-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          >
+            <motion.div 
+              className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-4 py-1.5 text-sm text-muted-foreground"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+            >
               <Flame className="h-4 w-4 text-orange-500" />
               <span>Dirancang khusus untuk mahasiswa</span>
-            </div>
-            <h1 className="text-balance text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">
+            </motion.div>
+            
+            <motion.h1 
+              className="text-balance text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.8 }}
+            >
               Kelola Tugas Kuliah
               <span className="block text-muted-foreground">Lebih Mudah</span>
-            </h1>
-            <p className="mx-auto mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground">
+            </motion.h1>
+            
+            <motion.p 
+              className="mx-auto mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted-foreground"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.8 }}
+            >
               FlowDay membantu mahasiswa mengatur deadline, membangun kebiasaan produktif, 
               dan memantau progress belajar dalam satu tempat.
-            </p>
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            </motion.p>
+            
+            <motion.div 
+              className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7, duration: 0.8 }}
+            >
               <Link href="/register">
                 <Button size="lg" className="gap-2">
                   Mulai Sekarang
@@ -127,83 +217,98 @@ export default function LandingPage() {
                   Sudah punya akun
                 </Button>
               </Link>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
+        
+        {/* Scroll Indicator */}
+        <motion.div 
+          className="absolute bottom-8 left-1/2 -translate-x-1/2"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1, duration: 0.8, repeat: Infinity, repeatType: "reverse" }}
+        >
+          <ChevronDown className="h-6 w-6 text-muted-foreground" />
+        </motion.div>
       </section>
 
-      {/* Features Section */}
+      {/* Features Section with MagicBento */}
       <section className="border-t border-border/40 bg-muted/30 py-20 md:py-28">
         <div className="mx-auto max-w-6xl px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-              Semua yang kamu butuhkan
-            </h2>
-            <p className="mt-4 text-pretty text-muted-foreground">
-              Fitur lengkap untuk membantu produktivitas belajarmu
-            </p>
-          </div>
-          <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <FeatureCard
-              icon={<CheckCircle2 className="h-5 w-5" />}
+          <SectionHeader 
+            title="Semua yang kamu butuhkan"
+            description="Fitur lengkap untuk membantu produktivitas belajarmu"
+          />
+          
+          {/* Bento Grid */}
+          <div className="mt-16 grid gap-4 md:grid-cols-2 lg:grid-cols-4 lg:grid-rows-3">
+            <BentoCard
+              image="/assets/px-1.jpg"
               title="Task Management"
               description="Kelola tugas kuliah dengan prioritas, deadline, dan kategori mata kuliah."
+              label="Produktif"
+              index={0}
+              className="lg:col-span-1 lg:row-span-1"
             />
-            <FeatureCard
-              icon={<Flame className="h-5 w-5" />}
+            <BentoCard
+              image="/assets/px-2.jpg"
               title="Habit Tracker"
               description="Bangun kebiasaan produktif dan pantau streak harianmu."
+              label="Konsisten"
+              index={1}
+              className="lg:col-span-1 lg:row-span-1"
             />
-            <FeatureCard
-              icon={<BarChart3 className="h-5 w-5" />}
+            <BentoCard
+              image="/assets/px-3.jpg"
               title="Analytics"
-              description="Lihat progress mingguan dan konsistensi belajarmu."
+              description="Lihat progress mingguan dan konsistensi belajarmu dengan visualisasi data yang jelas."
+              label="Insight"
+              index={2}
+              className="lg:col-span-2 lg:row-span-2"
             />
-            <FeatureCard
-              icon={<Calendar className="h-5 w-5" />}
+            <BentoCard
+              image="/assets/px-4.jpg"
               title="Deadline Reminder"
-              description="Jangan pernah lupa deadline dengan tampilan yang jelas."
+              description="Jangan pernah lupa deadline dengan notifikasi dan tampilan yang jelas."
+              label="Tepat Waktu"
+              index={3}
+              className="lg:col-span-2 lg:row-span-2"
             />
-            <FeatureCard
-              icon={<BookOpen className="h-5 w-5" />}
+            <BentoCard
+              image="/assets/px-5.jpg"
               title="Per Mata Kuliah"
               description="Organisir tugas berdasarkan mata kuliah yang kamu ambil."
+              label="Terorganisir"
+              index={4}
+              className="lg:col-span-1 lg:row-span-1"
             />
-            <FeatureCard
-              icon={<Target className="h-5 w-5" />}
+            <BentoCard
+              image="/assets/px-6.jpg"
               title="Progress Tracking"
               description="Pantau berapa banyak tugas yang sudah kamu selesaikan."
+              label="Target"
+              index={5}
+              className="lg:col-span-1 lg:row-span-1"
             />
           </div>
         </div>
       </section>
 
-      {/* How it Works */}
+      {/* How it Works with Carousel */}
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-6xl px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-              Cara Kerja FlowDay
-            </h2>
-            <p className="mt-4 text-pretty text-muted-foreground">
-              Tiga langkah sederhana untuk produktivitas maksimal
-            </p>
-          </div>
-          <div className="mt-16 grid gap-8 md:grid-cols-3">
-            <StepCard
-              number="01"
-              title="Tambah Tugas"
-              description="Input tugas kuliah beserta deadline dan prioritasnya."
-            />
-            <StepCard
-              number="02"
-              title="Atur Habit"
-              description="Tentukan kebiasaan harian yang ingin kamu bangun."
-            />
-            <StepCard
-              number="03"
-              title="Pantau Progress"
-              description="Lihat statistik dan tetap konsisten setiap hari."
+          <SectionHeader 
+            title="Cara Kerja FlowDay"
+            description="Tiga langkah sederhana untuk produktivitas maksimal"
+          />
+          <div className="mt-20 flex justify-center">
+            <CarouselSteps
+              items={carouselSteps}
+              baseWidth={420}
+              autoplay={true}
+              autoplayDelay={4000}
+              pauseOnHover={true}
+              loop={true}
             />
           </div>
         </div>
@@ -212,23 +317,7 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="border-t border-border/40 bg-muted/30 py-20 md:py-28">
         <div className="mx-auto max-w-6xl px-6">
-          <div className="mx-auto max-w-2xl text-center">
-            <Clock className="mx-auto h-10 w-10 text-muted-foreground" />
-            <h2 className="mt-6 text-balance text-3xl font-semibold tracking-tight md:text-4xl">
-              Jangan biarkan deadline mengejarmu
-            </h2>
-            <p className="mt-4 text-pretty text-muted-foreground">
-              Mulai kelola tugas dan kebiasaanmu hari ini. Gratis selamanya.
-            </p>
-            <div className="mt-8">
-              <Link href="/register">
-                <Button size="lg" className="gap-2">
-                  Daftar Sekarang
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            </div>
-          </div>
+          <CTASection />
         </div>
       </section>
 
@@ -266,17 +355,155 @@ export default function LandingPage() {
   )
 }
 
+function SectionHeader({ title, description }: { title: string; description: string }) {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  
+  return (
+    <motion.div 
+      ref={ref}
+      className="mx-auto max-w-2xl text-center"
+      initial={{ opacity: 0, y: 30 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+      transition={{ duration: 0.6 }}
+    >
+      <h2 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">
+        {title}
+      </h2>
+      <p className="mt-4 text-pretty text-muted-foreground">
+        {description}
+      </p>
+    </motion.div>
+  )
+}
+
+function CTASection() {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  
+  return (
+    <motion.div 
+      ref={ref}
+      className="mx-auto max-w-2xl text-center"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.6 }}
+    >
+      <Clock className="mx-auto h-10 w-10 text-muted-foreground" />
+      <h2 className="mt-6 text-balance text-3xl font-semibold tracking-tight md:text-4xl">
+        Jangan biarkan deadline mengejarmu
+      </h2>
+      <p className="mt-4 text-pretty text-muted-foreground">
+        Mulai kelola tugas dan kebiasaanmu hari ini. Gratis selamanya.
+      </p>
+      <div className="mt-8">
+        <Link href="/register">
+          <Button size="lg" className="gap-2">
+            Daftar Sekarang
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
+      </div>
+    </motion.div>
+  )
+}
+
+function BentoCard({
+  image,
+  title,
+  description,
+  label,
+  index = 0,
+  className = ''
+}: {
+  image: string
+  title: string
+  description: string
+  label: string
+  index?: number
+  className?: string
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  const [glowPosition, setGlowPosition] = useState({ x: 50, y: 50 })
+  const [glowIntensity, setGlowIntensity] = useState(0)
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width) * 100
+    const y = ((e.clientY - rect.top) / rect.height) * 100
+    setGlowPosition({ x, y })
+    setGlowIntensity(1)
+  }
+
+  const handleMouseLeave = () => {
+    setGlowIntensity(0)
+  }
+
+  return (
+    <motion.div
+      ref={ref}
+      className={`group relative rounded-2xl border border-border/60 bg-background overflow-hidden transition-all duration-300 hover:border-foreground/20 hover:shadow-lg ${className}`}
+      initial={{ opacity: 0, y: 50 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
+      transition={{ duration: 0.5, delay: index * 0.1 }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Image Container */}
+      <div className="relative w-full aspect-[4/3] overflow-hidden">
+        <Image
+          src={image}
+          alt={title}
+          fill
+          className="object-cover transition-transform duration-500 group-hover:scale-105"
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        />
+        {/* Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent opacity-60" />
+        
+        {/* Label Badge */}
+        <div className="absolute top-4 right-4">
+          <span className="text-xs font-medium text-foreground bg-background/90 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border/50">
+            {label}
+          </span>
+        </div>
+      </div>
+      
+      {/* Content */}
+      <div className="relative p-6">
+        <h3 className="font-semibold text-lg mb-2 text-foreground">{title}</h3>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          {description}
+        </p>
+      </div>
+    </motion.div>
+  )
+}
+
 function FeatureCard({ 
   icon, 
   title, 
-  description 
+  description,
+  index = 0
 }: { 
   icon: React.ReactNode
   title: string
-  description: string 
+  description: string
+  index?: number
 }) {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  
   return (
-    <div className="rounded-xl border border-border/60 bg-background p-6 transition-colors hover:border-border">
+    <motion.div 
+      ref={ref}
+      className="rounded-xl border border-border/60 bg-background p-6 transition-colors hover:border-border"
+      initial={{ opacity: 0, y: 50 }}
+      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
+      transition={{ duration: 0.5, delay: index * 0.1 }}
+    >
       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
         {icon}
       </div>
@@ -284,7 +511,7 @@ function FeatureCard({
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         {description}
       </p>
-    </div>
+    </motion.div>
   )
 }
 
@@ -292,13 +519,24 @@ function StepCard({
   number,
   title,
   description,
+  index = 0
 }: {
   number: string
   title: string
   description: string
+  index?: number
 }) {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  
   return (
-    <div className="text-center">
+    <motion.div 
+      ref={ref}
+      className="text-center"
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8 }}
+      transition={{ duration: 0.5, delay: index * 0.2 }}
+    >
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-lg font-semibold text-background">
         {number}
       </div>
@@ -306,6 +544,6 @@ function StepCard({
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
         {description}
       </p>
-    </div>
+    </motion.div>
   )
 }

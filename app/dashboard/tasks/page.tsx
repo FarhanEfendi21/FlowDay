@@ -266,16 +266,16 @@ export default function TasksPage() {
                   Tambah Tugas
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
                 <DialogHeader>
                   <DialogTitle>Tambah Tugas Baru</DialogTitle>
-            </DialogHeader>
-            <TaskForm
-              subjects={expandedSubjects}
-              isLoading={createTask.isPending}
-              onAdd={handleCreate}
-            />
-          </DialogContent>
+                </DialogHeader>
+                <TaskForm
+                  subjects={expandedSubjects}
+                  isLoading={createTask.isPending}
+                  onAdd={handleCreate}
+                />
+              </DialogContent>
             </Dialog>
           )}
         </div>
@@ -463,7 +463,7 @@ export default function TasksPage() {
         open={!!editingTask}
         onOpenChange={(open) => !open && setEditingTask(null)}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Edit Tugas</DialogTitle>
           </DialogHeader>
