@@ -301,17 +301,15 @@ export default function LandingPage() {
             title="Cara Kerja FlowDay"
             description="Tiga langkah sederhana untuk produktivitas maksimal"
           />
-          <div className="mt-16 sm:mt-20 flex justify-center w-full">
-            <div className="w-full max-w-[420px]">
-              <CarouselSteps
-                items={carouselSteps}
-                baseWidth={420}
-                autoplay={true}
-                autoplayDelay={4000}
-                pauseOnHover={true}
-                loop={true}
-              />
-            </div>
+          <div className="mt-16 sm:mt-20 flex justify-center">
+            <CarouselSteps
+              items={carouselSteps}
+              baseWidth={420}
+              autoplay={true}
+              autoplayDelay={4000}
+              pauseOnHover={true}
+              loop={true}
+            />
           </div>
         </div>
       </section>

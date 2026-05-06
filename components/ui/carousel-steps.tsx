@@ -79,8 +79,27 @@ export default function CarouselSteps({
   pauseOnHover = true,
   loop = true
 }: CarouselProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(baseWidth)
+  
+  // Calculate responsive width
+  useEffect(() => {
+    const updateWidth = () => {
+      if (containerRef.current) {
+        const parentWidth = containerRef.current.parentElement?.clientWidth || baseWidth
+        // Use parent width but cap at baseWidth
+        const newWidth = Math.min(parentWidth, baseWidth)
+        setContainerWidth(newWidth)
+      }
+    }
+    
+    updateWidth()
+    window.addEventListener('resize', updateWidth)
+    return () => window.removeEventListener('resize', updateWidth)
+  }, [baseWidth])
+  
   const containerPadding = 16
-  const itemWidth = baseWidth - containerPadding * 2
+  const itemWidth = containerWidth - containerPadding * 2
   const trackItemOffset = itemWidth + GAP
 
   const itemsForRender = useMemo(() => {
@@ -94,7 +113,6 @@ export default function CarouselSteps({
   const [isHovered, setIsHovered] = useState(false)
   const [isJumping, setIsJumping] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (pauseOnHover && containerRef.current) {
@@ -202,8 +220,8 @@ export default function CarouselSteps({
       ref={containerRef}
       className="carousel-container"
       style={{
-        width: `${baseWidth}px`,
-        maxWidth: '100%'
+        width: '100%',
+        maxWidth: `${baseWidth}px`
       }}
     >
       <div className="carousel-container-inner">

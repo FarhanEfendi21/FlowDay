@@ -44,6 +44,13 @@
   overflow: hidden;
   cursor: grab;
   transition: all 0.2s ease;
+  min-height: 280px;
+}
+
+@media (min-width: 640px) {
+  .carousel-item {
+    min-height: 320px;
+  }
 }
 
 .carousel-item:hover {
