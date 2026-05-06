@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
@@ -29,6 +30,12 @@ import {
 
 export default function LandingPage() {
   const { theme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  
+  // Wait for client-side mount to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   
   const techStack = [
     { node: <SiReact className="w-12 h-12" />, title: "React", href: "https://react.dev" },
@@ -237,18 +244,20 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="h-24 overflow-hidden">
-            <LogoLoop
-              logos={techStack}
-              speed={40}
-              direction="left"
-              logoHeight={48}
-              gap={64}
-              hoverSpeed={10}
-              scaleOnHover
-              fadeOut
-              fadeOutColor={theme === "dark" ? "#0b0b0b" : "#ffffff"}
-              ariaLabel="Technology stack"
-            />
+            {mounted && (
+              <LogoLoop
+                logos={techStack}
+                speed={40}
+                direction="left"
+                logoHeight={48}
+                gap={64}
+                hoverSpeed={10}
+                scaleOnHover
+                fadeOut
+                fadeOutColor={theme === "dark" ? "#0b0b0b" : "#ffffff"}
+                ariaLabel="Technology stack"
+              />
+            )}
           </div>
         </div>
       </section>

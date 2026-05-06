@@ -2,25 +2,26 @@
 
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
+import TextType from "@/components/ui/text-type"
+import { Logo } from "@/components/logo"
 
-const SPLASH_SHOWN_KEY = "flowday-splash-shown-today"
+const SPLASH_SHOWN_KEY = "flowday-splash-shown-session"
 
-// Check if splash should be shown (once per day)
+// Check if splash should be shown (once per session)
 function shouldShowSplash(): boolean {
   if (typeof window === 'undefined') return false
   
-  const lastShown = localStorage.getItem(SPLASH_SHOWN_KEY)
-  const today = new Date().toDateString()
+  // Check sessionStorage instead of localStorage for per-session display
+  const hasShown = sessionStorage.getItem(SPLASH_SHOWN_KEY)
   
-  // Show splash if never shown or shown on different day
-  return lastShown !== today
+  // Show splash if not shown in this session
+  return !hasShown
 }
 
-// Mark splash as shown for today
+// Mark splash as shown for this session
 function markSplashShown(): void {
   if (typeof window === 'undefined') return
-  const today = new Date().toDateString()
-  localStorage.setItem(SPLASH_SHOWN_KEY, today)
+  sessionStorage.setItem(SPLASH_SHOWN_KEY, 'true')
 }
 
 export function SplashScreen() {
@@ -30,19 +31,19 @@ export function SplashScreen() {
   useEffect(() => {
     // Check if we should show splash
     if (!shouldShowSplash()) {
-      console.log('[SplashScreen] Already shown today, skipping')
+      console.log('[SplashScreen] Already shown this session, skipping')
       setIsVisible(false)
       return
     }
 
     // Show splash and mark as shown
-    console.log('[SplashScreen] First time today, showing splash')
+    console.log('[SplashScreen] First time this session, showing splash')
     setIsVisible(true)
     markSplashShown()
 
-    // Show for 1.2s then fade out
-    const fadeTimer = setTimeout(() => setIsFadingOut(true), 1200)
-    const removeTimer = setTimeout(() => setIsVisible(false), 1800)
+    // Show for 3s then fade out (longer to see typing animation)
+    const fadeTimer = setTimeout(() => setIsFadingOut(true), 3000)
+    const removeTimer = setTimeout(() => setIsVisible(false), 3600)
 
     return () => {
       clearTimeout(fadeTimer)
@@ -65,49 +66,30 @@ export function SplashScreen() {
         <div className="absolute inset-0 -z-10 flex items-center justify-center">
           <div 
             className={cn(
-              "h-32 w-32 rounded-full",
+              "h-40 w-40 rounded-full",
               "bg-gradient-to-br from-foreground/5 to-foreground/10",
               "animate-splash-pulse"
             )}
           />
         </div>
 
-        {/* FlowDay Text with Scale Animation */}
+        {/* Logo with Scale Animation */}
         <div className="animate-splash-scale">
-          <div className="relative">
-            {/* Glow Effect */}
-            <div 
-              className={cn(
-                "absolute inset-0 -z-10 blur-2xl opacity-30",
-                "bg-gradient-to-br from-foreground/20 to-foreground/5",
-                "animate-splash-glow"
-              )}
-            />
-            <h1 className="text-5xl font-bold tracking-tight text-foreground drop-shadow-2xl">
-              FlowDay
-            </h1>
-          </div>
+          <Logo size={64} showText={false} />
         </div>
 
-        {/* Loading Dots - Modern Style */}
-        <div className="flex items-center gap-2">
-          <div 
-            className={cn(
-              "h-2 w-2 rounded-full bg-foreground",
-              "animate-splash-dot-1"
-            )}
-          />
-          <div 
-            className={cn(
-              "h-2 w-2 rounded-full bg-foreground",
-              "animate-splash-dot-2"
-            )}
-          />
-          <div 
-            className={cn(
-              "h-2 w-2 rounded-full bg-foreground",
-              "animate-splash-dot-3"
-            )}
+        {/* Welcome Text with Typing Animation */}
+        <div className="flex flex-col items-center gap-2">
+          <TextType
+            text="Welcome to FlowDay"
+            as="h1"
+            typingSpeed={80}
+            initialDelay={500}
+            loop={false}
+            showCursor={true}
+            cursorCharacter="|"
+            cursorBlinkDuration={0.5}
+            className="text-3xl font-bold tracking-tight text-foreground"
           />
         </div>
       </div>

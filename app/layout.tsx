@@ -64,13 +64,13 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body className={`${plusJakarta.variable} font-sans antialiased`}>
-        <SplashScreen />
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
           enableSystem
           disableTransitionOnChange
         >
+          <SplashScreen />
           <QueryProvider>
             {children}
           </QueryProvider>
