@@ -247,7 +247,7 @@ export function NotificationList({ onClose }: NotificationListProps) {
   }
 
   return (
-    <div className="flex flex-col h-[80vh] sm:h-[500px]">
+    <div className="flex flex-col h-[70vh] max-h-[600px] sm:h-[500px]">
       {/* Header */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between">
@@ -275,7 +275,7 @@ export function NotificationList({ onClose }: NotificationListProps) {
       </div>
 
       {/* Notification List */}
-      <ScrollArea className="flex-1 bg-muted/10">
+      <ScrollArea className="flex-1 bg-muted/10 overflow-y-auto">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
