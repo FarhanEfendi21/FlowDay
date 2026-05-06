@@ -192,11 +192,11 @@ graph TD
     end
     
     subgraph System["⚙️ Sistem"]
-        K[SET deleted_at = NOW]
+        K[Tandai Item Terhapus]
         K --> C
-        L[SET deleted_at = NULL]
+        L[Kembalikan Item]
         L --> I
-        M[DELETE FROM database]
+        M[Hapus Permanen]
         M --> H
     end
     
@@ -213,9 +213,9 @@ graph TD
 ```
 
 **Penjelasan:**
-- **Soft Delete**: Item pindah ke trash (data masih ada di database, bisa di-restore)
-- **Restore**: Item dikembalikan ke halaman utama
-- **Hard Delete**: Hapus permanen dari database dengan konfirmasi (tidak bisa dikembalikan)
+- **Soft Delete**: Item ditandai sebagai terhapus dan pindah ke trash (data masih tersimpan, bisa di-restore)
+- **Restore**: Item dikembalikan ke halaman utama dan bisa digunakan kembali
+- **Hard Delete**: Item dihapus permanen dari sistem dengan konfirmasi (tidak bisa dikembalikan)
 
 ---
 
