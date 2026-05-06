@@ -3,8 +3,8 @@
 import * as React from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
-import { Clock } from "lucide-react"
+import { ElasticSlider } from "@/components/ui/elastic-slider"
+import { Clock, Minus, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface TimePickerProps {
@@ -135,30 +135,40 @@ export function TimePicker({
       </div>
 
       {/* Sliders */}
-      <div className="space-y-3 pt-2">
+      <div className="space-y-4 pt-2">
         {/* Hours Slider */}
         <div className="space-y-1.5">
-          <Slider
-            value={[hours]}
-            onValueChange={(val) => handleHoursChange(val[0])}
-            min={0}
-            max={23}
-            step={1}
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-muted-foreground">Jam</span>
+          </div>
+          <ElasticSlider
+            defaultValue={hours}
+            startingValue={0}
+            maxValue={23}
+            isStepped
+            stepSize={1}
+            leftIcon={<Minus className="w-4 h-4" />}
+            rightIcon={<Plus className="w-4 h-4" />}
+            onChange={handleHoursChange}
             disabled={disabled}
-            className="w-full"
           />
         </div>
 
         {/* Minutes Slider */}
         <div className="space-y-1.5">
-          <Slider
-            value={[minutes]}
-            onValueChange={(val) => handleMinutesChange(val[0])}
-            min={0}
-            max={59}
-            step={1}
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-muted-foreground">Menit</span>
+          </div>
+          <ElasticSlider
+            defaultValue={minutes}
+            startingValue={0}
+            maxValue={59}
+            isStepped
+            stepSize={1}
+            leftIcon={<Minus className="w-4 h-4" />}
+            rightIcon={<Plus className="w-4 h-4" />}
+            onChange={handleMinutesChange}
             disabled={disabled}
-            className="w-full"
           />
         </div>
       </div>

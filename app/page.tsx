@@ -1,6 +1,11 @@
+"use client"
+
 import Link from "next/link"
+import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/logo"
+import { LightRays } from "@/components/ui/light-rays"
+import LogoLoop from "@/components/ui/logo-loop"
 import { 
   CheckCircle2, 
   Calendar, 
@@ -11,26 +16,77 @@ import {
   Clock,
   Target
 } from "lucide-react"
+import { 
+  SiReact, 
+  SiNextdotjs, 
+  SiTypescript, 
+  SiTailwindcss,
+  SiSupabase,
+  SiVercel,
+  SiFramer,
+  SiFirebase
+} from 'react-icons/si'
 
 export default function LandingPage() {
+  const { theme } = useTheme()
+  
+  const techStack = [
+    { node: <SiReact className="w-12 h-12" />, title: "React", href: "https://react.dev" },
+    { node: <SiNextdotjs className="w-12 h-12" />, title: "Next.js", href: "https://nextjs.org" },
+    { node: <SiTypescript className="w-12 h-12" />, title: "TypeScript", href: "https://www.typescriptlang.org" },
+    { node: <SiTailwindcss className="w-12 h-12" />, title: "Tailwind CSS", href: "https://tailwindcss.com" },
+    { node: <SiSupabase className="w-12 h-12" />, title: "Supabase", href: "https://supabase.com" },
+    { node: <SiVercel className="w-12 h-12" />, title: "Vercel", href: "https://vercel.com" },
+    { node: <SiFramer className="w-12 h-12" />, title: "Framer Motion", href: "https://www.framer.com/motion" },
+    { node: <SiFirebase className="w-12 h-12" />, title: "Firebase", href: "https://firebase.google.com" },
+  ]
+  
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="flex h-16 items-center justify-between">
-            <Logo size={32} showText={false} />
-            <div className="flex items-center gap-3">
-              <Link href="/login">
-                <Button variant="ghost" size="sm">
-                  Masuk
-                </Button>
-              </Link>
-              <Link href="/register">
-                <Button size="sm">
-                  Daftar Gratis
-                </Button>
-              </Link>
+    <div className="relative min-h-screen bg-background overflow-hidden">
+      {/* Animated Background */}
+      <div className="fixed inset-0 z-0">
+        <LightRays
+          raysOrigin="top-center"
+          raysColor={theme === "dark" ? "#3b82f6" : "#60a5fa"}
+          raysSpeed={0.8}
+          lightSpread={1.2}
+          rayLength={1.5}
+          followMouse={true}
+          mouseInfluence={0.15}
+          noiseAmount={0.05}
+          distortion={0.03}
+          fadeDistance={0.8}
+          saturation={0.7}
+        />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10">
+      {/* Navigation with Liquid Glass Effect */}
+      <nav className="fixed top-0 left-0 right-0 z-50">
+        <div className="relative">
+          {/* Glass morphism background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-background/60 via-background/40 to-background/60 backdrop-blur-2xl border-b border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.1)]" />
+          
+          {/* Animated liquid gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-pink-500/5 animate-liquid-flow opacity-50" />
+          
+          {/* Content */}
+          <div className="relative mx-auto max-w-6xl px-6">
+            <div className="flex h-16 items-center justify-between">
+              <Logo size={32} showText={false} />
+              <div className="flex items-center gap-3">
+                <Link href="/login">
+                  <Button variant="ghost" size="sm" className="hover:bg-white/10 transition-all duration-300">
+                    Masuk
+                  </Button>
+                </Link>
+                <Link href="/register">
+                  <Button size="sm">
+                    Daftar Gratis
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -169,17 +225,34 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/40 py-8">
+      {/* Tech Stack Section */}
+      <section className="border-t border-border/40 bg-muted/30 py-16">
         <div className="mx-auto max-w-6xl px-6">
-          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-            <Logo size={24} textClassName="text-sm font-medium" />
-            <p className="text-sm text-muted-foreground">
-              Dibuat untuk mahasiswa Indonesia
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-semibold tracking-tight">
+              Dibangun dengan teknologi modern
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Tech stack yang kami gunakan
             </p>
           </div>
+          <div className="h-24 overflow-hidden">
+            <LogoLoop
+              logos={techStack}
+              speed={40}
+              direction="left"
+              logoHeight={48}
+              gap={64}
+              hoverSpeed={10}
+              scaleOnHover
+              fadeOut
+              fadeOutColor={theme === "dark" ? "#0b0b0b" : "#ffffff"}
+              ariaLabel="Technology stack"
+            />
+          </div>
         </div>
-      </footer>
+      </section>
+      </div>
     </div>
   )
 }
