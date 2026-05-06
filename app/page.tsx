@@ -296,20 +296,22 @@ export default function LandingPage() {
 
       {/* How it Works with Carousel */}
       <section className="py-20 md:py-28">
-        <div className="mx-auto max-w-6xl px-6">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <SectionHeader 
             title="Cara Kerja FlowDay"
             description="Tiga langkah sederhana untuk produktivitas maksimal"
           />
-          <div className="mt-20 flex justify-center">
-            <CarouselSteps
-              items={carouselSteps}
-              baseWidth={420}
-              autoplay={true}
-              autoplayDelay={4000}
-              pauseOnHover={true}
-              loop={true}
-            />
+          <div className="mt-16 sm:mt-20 flex justify-center w-full">
+            <div className="w-full max-w-[420px]">
+              <CarouselSteps
+                items={carouselSteps}
+                baseWidth={420}
+                autoplay={true}
+                autoplayDelay={4000}
+                pauseOnHover={true}
+                loop={true}
+              />
+            </div>
           </div>
         </div>
       </section>
