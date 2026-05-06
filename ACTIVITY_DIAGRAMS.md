@@ -15,9 +15,6 @@
 6. [Search & Filter](#6-search--filter)
 7. [View Analytics](#7-view-analytics)
 8. [Notification System](#8-notification-system)
-9. [Enable Push Notifications](#9-enable-push-notifications)
-10. [Configure Notification Settings](#10-configure-notification-settings)
-11. [Complete System Flow](#11-complete-system-flow)
 
 ---
 
@@ -48,9 +45,10 @@ graph TD
 ```
 
 **Penjelasan:**
-- User isi form (nama, email, password) → klik daftar
-- Sistem validasi → jika valid: buat akun & profile
-- Redirect ke login
+- User mengisi form registrasi (nama, email, password)
+- Sistem melakukan validasi data
+- Jika valid: sistem membuat akun dan profile otomatis
+- User diarahkan ke halaman login
 
 ---
 
@@ -81,9 +79,10 @@ graph TD
 ```
 
 **Penjelasan:**
-- User input email & password → klik masuk
-- Sistem validasi → jika valid: buat session
-- Masuk ke dashboard
+- User memasukkan email dan password
+- Sistem memvalidasi kredensial
+- Jika valid: sistem membuat session dan user masuk ke dashboard
+- Jika tidak valid: tampilkan pesan error
 
 ---
 
@@ -126,9 +125,10 @@ graph TD
 ```
 
 **Penjelasan:**
-- **Tambah/Edit**: Isi form → validasi → simpan
-- **Hapus**: Soft delete (pindah ke trash)
-- **Toggle**: Ubah status todo ↔ done
+- **Tambah/Edit**: User mengisi form → sistem validasi → simpan ke database
+- **Hapus**: Soft delete (item pindah ke trash, masih bisa di-restore)
+- **Toggle**: Ubah status task antara todo dan done
+- Semua operasi akan refresh list secara otomatis
 
 ---
 
@@ -168,10 +168,10 @@ graph TD
 ```
 
 **Penjelasan:**
-- **Tambah**: Input nama → buat habit (streak = 0)
-- **Toggle**: Klik tanggal → toggle & hitung streak
-- **Stats**: Tampilkan completion rate & streak
-- **Hapus**: Soft delete ke trash
+- **Tambah**: User input nama habit → sistem buat habit baru (streak dimulai dari 0)
+- **Toggle**: User klik tanggal di tracker → sistem toggle status complete dan hitung ulang streak
+- **Stats**: Sistem menampilkan completion rate dan current streak
+- **Hapus**: Soft delete habit ke trash
 
 ---
 
@@ -213,9 +213,9 @@ graph TD
 ```
 
 **Penjelasan:**
-- **Soft Delete**: Item pindah ke trash (bisa di-restore)
-- **Restore**: Item kembali ke halaman utama
-- **Hard Delete**: Hapus permanen (tidak bisa dikembalikan)
+- **Soft Delete**: Item pindah ke trash (data masih ada di database, bisa di-restore)
+- **Restore**: Item dikembalikan ke halaman utama
+- **Hard Delete**: Hapus permanen dari database dengan konfirmasi (tidak bisa dikembalikan)
 
 ---
 
@@ -258,10 +258,11 @@ graph TD
 ```
 
 **Penjelasan:**
-- Load tasks dengan RLS filter
-- User bisa search atau filter (subject/status)
-- Filter real-time di client-side
-- Tampilkan empty state jika tidak ada hasil
+- Sistem load tasks dengan Row Level Security (RLS) filter
+- User bisa melakukan search berdasarkan title/description
+- User bisa filter berdasarkan subject (mata kuliah) atau status (todo/done)
+- Filter dilakukan real-time di client-side untuk performa optimal
+- Tampilkan empty state jika tidak ada hasil yang cocok
 
 ---
 
@@ -293,10 +294,15 @@ graph TD
 ```
 
 **Penjelasan:**
-- User klik menu analytics
-- Sistem fetch 5 query paralel
-- Render charts & stats cards
-- User bisa hover untuk tooltip detail
+- User mengklik menu analytics
+- Sistem melakukan 5 query paralel untuk performa optimal:
+  - Dashboard Summary (total tasks, habits, streak)
+  - Weekly Stats (progress 7 hari terakhir)
+  - Subject Stats (breakdown per mata kuliah)
+  - Habit Stats (completion rate 30 hari)
+  - Priority Breakdown (high/medium/low)
+- Sistem render charts dan stats cards
+- User bisa hover untuk melihat tooltip detail
 
 ---
 
@@ -350,199 +356,45 @@ graph TD
 ```
 
 **Penjelasan:**
-- **4 Cron Jobs** berjalan otomatis:
-  - Daily 8AM: Notif deadline besok
-  - Every 6H: Notif urgent (deadline <6 jam)
-  - Daily custom: Notif habit reminder
-  - Weekly: Cleanup token lama
-- User terima push notification di device
+- **4 Cron Jobs** berjalan otomatis di background:
+  1. **Daily 8AM**: Cek tasks yang deadline besok → kirim notifikasi pengingat
+  2. **Every 6H**: Cek tasks urgent (deadline <6 jam) → kirim notifikasi urgent
+  3. **Daily Custom**: Cek habits yang belum done hari ini → kirim reminder sesuai waktu user
+  4. **Weekly**: Cleanup FCM tokens yang sudah tidak aktif >30 hari
+- User menerima push notification di device mereka
+- Semua notifikasi mengecek user preferences terlebih dahulu
 
 ---
 
-## 9. Enable Push Notifications
+## 📝 CATATAN FORMAT DIAGRAM
 
-```mermaid
-graph TD
-    subgraph User["👤 Pelanggan"]
-        A([Start]) --> B[Buka Aplikasi]
-        C[Tampilkan Prompt] --> D{Klik Aktifkan?}
-        D -->|Tidak| E([End])
-        D -->|Ya| F[Izinkan Permission]
-        F --> G{Permission?}
-        G -->|Denied| H[Tampilkan Error]
-        H --> E
-        G -->|Granted| I[Tunggu...]
-        J[Terima Test Notif] --> E
-    end
-    
-    subgraph System["⚙️ Sistem"]
-        K{Browser Support?}
-        K -->|Tidak| L[Tampilkan Error]
-        L --> E
-        K -->|Ya| M{Token Ada?}
-        M -->|Ya| E
-        M -->|Tidak| C
-        N[Get FCM Token]
-        N --> O[Save ke Database]
-        O --> P[Send Test Notif]
-        P -.->|Push| J
-    end
-    
-    B --> K
-    I --> N
+### Role-Based Activity Diagrams (Swimlanes)
 
-    style A fill:#90EE90
-    style E fill:#90EE90
-    style H fill:#FFB6C1
-    style L fill:#FFB6C1
-    style N fill:#E6F3FF
-    style O fill:#E6F3FF
-    style P fill:#E6F3FF
-```
+Semua activity diagram menggunakan format **role-based** dengan **swimlanes** untuk memisahkan tanggung jawab:
 
-**Penjelasan:**
-- Cek browser support push notification
-- Jika support: tampilkan prompt
-- User izinkan permission → sistem get FCM token
-- Save token ke database → send test notification
+1. **👤 Pengunjung (Guest)** - User yang belum login
+2. **👤 Pelanggan (Customer)** - User yang sudah login  
+3. **⚙️ Sistem** - Backend system, database, API, cron jobs
 
----
+### Keuntungan Format Role-Based:
 
-## 10. Configure Notification Settings
+- ✅ **Pemisahan Tanggung Jawab yang Jelas**: Mudah melihat siapa yang melakukan apa
+- ✅ **Identifikasi Interaksi**: Jelas terlihat komunikasi antara user dan sistem
+- ✅ **Debugging Lebih Mudah**: Cepat menemukan di mana masalah terjadi (client-side vs server-side)
+- ✅ **Dokumentasi Lebih Baik**: Memudahkan developer baru memahami flow aplikasi
+- ✅ **Sesuai Standar UML**: Mengikuti best practice activity diagram dengan swimlanes
 
-```mermaid
-graph TD
-    subgraph User["👤 Pelanggan"]
-        A([Start]) --> B[Buka Settings]
-        B --> C[Klik Tab Notifications]
-        D[Tampilkan Form] --> E{User Action}
-        E -->|Toggle| F[Toggle Switch]
-        E -->|Change Time| G[Pilih Waktu]
-        E -->|Simpan| H[Klik Simpan]
-        E -->|Batal| I[Klik Batal]
-        F --> E
-        G --> E
-        J[Tampilkan Error] --> E
-        K[Tampilkan Success] --> L([End])
-        I --> L
-    end
-    
-    subgraph System["⚙️ Sistem"]
-        M[Load Preferences]
-        M --> N{Exists?}
-        N -->|Tidak| O[Create Default]
-        N -->|Ya| D
-        O --> D
-        P{Valid?}
-        P -->|Tidak| J
-        P -->|Ya| Q[Save to Database]
-        Q --> K
-    end
-    
-    C --> M
-    H --> P
+### Konvensi Warna:
 
-    style A fill:#90EE90
-    style L fill:#90EE90
-    style J fill:#FFB6C1
-    style K fill:#90EE90
-    style M fill:#E6F3FF
-    style O fill:#E6F3FF
-    style Q fill:#E6F3FF
-```
+- 🟢 **Hijau (#90EE90)**: Start, End, Success states
+- 🔴 **Merah Muda (#FFB6C1)**: Error states, Failed operations
+- 🟡 **Kuning Muda (#FFF8DC)**: Warning, Confirmation dialogs
+- 🔵 **Biru Muda (#87CEEB, #E6F3FF)**: System processes, Cron jobs
 
-**Penjelasan:**
-- Load preferences (create default jika belum ada)
-- User bisa toggle switches & ubah waktu
-- Simpan → validasi → save to database
-- Batal → kembali tanpa save
+### Simbol Koneksi:
 
----
-
-## 11. Complete System Flow
-
-```mermaid
-graph TD
-    subgraph User["👤 Pengunjung/Pelanggan"]
-        A([Start]) --> B[Buka Aplikasi]
-        C[Landing Page] --> D{Pilih}
-        D -->|Login| E[Input Login]
-        D -->|Register| F[Input Register]
-        G[Dashboard] --> H{Menu}
-        H -->|Tasks| I[Kelola Tasks]
-        H -->|Habits| J[Kelola Habits]
-        H -->|Analytics| K[Lihat Analytics]
-        H -->|Trash| L[Kelola Trash]
-        H -->|Settings| M[Atur Settings]
-        H -->|Logout| N[Logout]
-        I --> H
-        J --> H
-        K --> H
-        L --> H
-        M --> H
-        N --> C
-        H -->|Close| O([End])
-    end
-    
-    subgraph System["⚙️ Sistem"]
-        P{Authenticated?}
-        P -->|Tidak| C
-        P -->|Ya| Q[Validate Session]
-        Q --> R{Valid?}
-        R -->|Tidak| C
-        R -->|Ya| S[Load Data dengan RLS]
-        S --> G
-        T{Login Valid?}
-        T -->|Ya| U[Create Session]
-        U --> Q
-        T -->|Tidak| C
-        V{Register Valid?}
-        V -->|Ya| W[Create User]
-        W --> U
-        V -->|Tidak| C
-    end
-    
-    B --> P
-    E --> T
-    F --> V
-
-    style A fill:#90EE90
-    style O fill:#90EE90
-    style G fill:#90EE90
-    style P fill:#E6F3FF
-    style Q fill:#E6F3FF
-    style S fill:#E6F3FF
-    style U fill:#E6F3FF
-    style W fill:#E6F3FF
-```
-
-**Penjelasan:**
-- **Authentication**: Cek session → jika tidak valid: landing page
-- **Login/Register**: Validasi → create session → dashboard
-- **Dashboard**: Menu utama (tasks, habits, analytics, trash, settings)
-- **Logout**: Clear session → kembali ke landing
-
----
-
-## 📝 CATATAN
-
-### Format Diagram
-
-Semua diagram menggunakan **role-based swimlanes**:
-- 👤 **Pengunjung/Pelanggan**: User actions
-- ⚙️ **Sistem**: Backend processes
-
-### Konvensi Warna
-
-- 🟢 **Hijau (#90EE90)**: Start, End, Success
-- 🔴 **Merah Muda (#FFB6C1)**: Error
-- 🟡 **Kuning (#FFF8DC)**: Warning/Confirmation
-- 🔵 **Biru Muda (#E6F3FF)**: System processes
-
-### Simbol
-
-- **→** (Solid): Alur synchronous
-- **-.->** (Dashed): Alur asynchronous (push notification)
+- **→ (Solid Arrow)**: Alur normal/synchronous
+- **-.-> (Dashed Arrow)**: Alur asynchronous (contoh: push notification)
 
 ---
 
