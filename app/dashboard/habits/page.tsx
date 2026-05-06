@@ -118,7 +118,9 @@ export default function HabitsPage() {
     )
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string, title: string) => {
+    if (!confirm(`Yakin ingin menghapus habit "${title}"? Habit akan dipindahkan ke trash.`)) return
+    
     deleteHabit.mutate(id, {
       onSuccess: () => toast.success("Habit dipindahkan ke trash"),
       onError: (err) => toast.error(err.message),
@@ -165,16 +167,15 @@ export default function HabitsPage() {
               triggerStreakMilestoneConfetti(currentStreak)
               
               if (user?.id) {
-                createNotification({
-                  userId: user.id,
-                  title: `Wow! Streak ${currentStreak} Hari 🔥`,
-                  body: `Luar biasa! Kamu berhasil mempertahankan kebiasaan "${habit.title}" selama ${currentStreak} hari berturut-turut.`,
-                  type: "streak_milestone",
-                  data: {
+                createNotification(
+                  `Wow! Streak ${currentStreak} Hari 🔥`,
+                  `Luar biasa! Kamu berhasil mempertahankan kebiasaan "${habit.title}" selama ${currentStreak} hari berturut-turut.`,
+                  "streak_milestone",
+                  {
                     url: "/dashboard/habits",
                     tag: `streak-${habitId}-${currentStreak}`
                   }
-                }).catch(console.error)
+                ).catch(console.error)
               }
             }
           }
@@ -471,7 +472,7 @@ export default function HabitsPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem
-                                    onClick={() => handleDelete(habit.id)}
+                                    onClick={() => handleDelete(habit.id, habit.title)}
                                     className="gap-2 text-destructive"
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -508,7 +509,7 @@ export default function HabitsPage() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem
-                                    onClick={() => handleDelete(habit.id)}
+                                    onClick={() => handleDelete(habit.id, habit.title)}
                                     className="gap-2 text-destructive"
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -575,7 +576,7 @@ export default function HabitsPage() {
                       )}
                       <CardContent className="relative p-4 sm:p-5">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                             <div
                               className={cn(
                                 "flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-lg transition-all",
@@ -590,7 +591,7 @@ export default function HabitsPage() {
                                 <Flame className="h-5 w-5 sm:h-6 sm:w-6 text-orange-500" />
                               )}
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="font-semibold text-sm sm:text-base truncate">{habit.title}</p>
                               <p className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1">
                                 <Flame className="h-3 w-3 text-orange-500" />
@@ -598,11 +599,29 @@ export default function HabitsPage() {
                               </p>
                             </div>
                           </div>
-                          <Checkbox
-                            checked={habit.isCompletedToday}
-                            onCheckedChange={() => handleToggle(habit.id, today)}
-                            className="mt-1 shrink-0"
-                          />
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Checkbox
+                              checked={habit.isCompletedToday}
+                              onCheckedChange={() => handleToggle(habit.id, today)}
+                              className="h-5 w-5"
+                            />
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => handleDelete(habit.id, habit.title)}
+                                  className="gap-2 text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Hapus
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

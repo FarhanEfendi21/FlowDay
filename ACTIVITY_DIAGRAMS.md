@@ -1,6 +1,8 @@
 # ACTIVITY DIAGRAMS - FlowDay Project
 # Task & Habit Management System
 
+> **Format**: Activity Diagrams menggunakan **Role-Based (Swimlanes)** untuk memisahkan aktivitas antara **User/Pengunjung/Pelanggan** dan **Sistem**.
+
 ---
 
 ## 📋 DAFTAR ISI
@@ -24,34 +26,41 @@
 
 ```mermaid
 graph TD
-    Start([User Membuka Halaman Register]) --> InputData[User Mengisi Form:<br/>- Nama<br/>- Email<br/>- Password<br/>- Konfirmasi Password]
-    InputData --> Submit[User Klik Tombol Daftar]
-    Submit --> ValidateClient{Validasi Client-Side:<br/>Password Match?}
+    subgraph User["👤 Pengunjung (Guest)"]
+        Start([Start]) --> AccessPage[Akses Halaman<br/>Register]
+        AccessPage --> FillForm[Isi Form Registrasi:<br/>- Nama<br/>- Email<br/>- Password<br/>- Konfirmasi Password]
+        FillForm --> SubmitBtn[Klik Tombol Daftar]
+        ErrorMatch[Tampilkan Error:<br/>Password Tidak Cocok] --> FillForm
+        ErrorServer[Tampilkan Error<br/>dari Server] --> FillForm
+        ShowSuccess[Tampilkan Pesan Sukses] --> RedirectLogin[Redirect ke<br/>Halaman Login]
+        RedirectLogin --> End([End])
+    end
     
-    ValidateClient -->|Tidak| ErrorMatch[Tampilkan Error:<br/>Password Tidak Cocok]
-    ErrorMatch --> InputData
+    subgraph System["⚙️ Sistem"]
+        ValidateClient{Validasi Client-Side:<br/>Password Match?}
+        ValidateClient -->|Tidak| ErrorMatch
+        ValidateClient -->|Ya| SendRequest[Kirim Request ke<br/>Supabase Auth API]
+        SendRequest --> ValidateServer{Validasi Server:<br/>Email Valid?<br/>Password Min 6 Char?}
+        ValidateServer -->|Tidak| ErrorServer
+        ValidateServer -->|Ya| CreateUser[Create User<br/>di auth.users]
+        CreateUser --> TriggerDB[Database Trigger:<br/>handle_new_user]
+        TriggerDB --> CreateProfile[Auto-Create Profile<br/>di public.profiles]
+        CreateProfile --> SendEmail[Kirim Email<br/>Konfirmasi]
+        SendEmail --> ShowSuccess
+    end
     
-    ValidateClient -->|Ya| CallAPI[Kirim Request ke<br/>Supabase Auth API]
-    CallAPI --> ValidateServer{Validasi Server:<br/>Email Valid?<br/>Password Min 6 Char?}
-    
-    ValidateServer -->|Tidak| ErrorServer[Tampilkan Error<br/>dari Server]
-    ErrorServer --> InputData
-    
-    ValidateServer -->|Ya| CreateUser[Supabase: Create User<br/>di auth.users]
-    CreateUser --> Trigger[Database Trigger:<br/>handle_new_user]
-    Trigger --> CreateProfile[Auto-Create Profile<br/>di public.profiles]
-    CreateProfile --> Success[Tampilkan Pesan Sukses]
-    Success --> Redirect[Redirect ke<br/>Halaman Login]
-    Redirect --> End([Selesai])
+    SubmitBtn --> ValidateClient
 
-    style Start fill:#e1f5e1
-    style End fill:#e1f5e1
-    style ErrorMatch fill:#ffe1e1
-    style ErrorServer fill:#ffe1e1
-    style Success fill:#e1f5e1
+    style Start fill:#90EE90
+    style End fill:#90EE90
+    style ErrorMatch fill:#FFB6C1
+    style ErrorServer fill:#FFB6C1
+    style ShowSuccess fill:#90EE90
 ```
 
 **Penjelasan:**
+- **Role User (Pengunjung/Guest)**: Mengakses halaman register, mengisi form, menerima feedback
+- **Role Sistem**: Melakukan validasi client-side dan server-side, membuat user di database, trigger auto-create profile, mengirim email konfirmasi
 - User mengisi form registrasi dengan nama, email, password, dan konfirmasi password
 - Validasi client-side memastikan password dan konfirmasi password cocok
 - Request dikirim ke Supabase Auth API
@@ -66,35 +75,39 @@ graph TD
 
 ```mermaid
 graph TD
-    Start([User Membuka Halaman Login]) --> InputCred[User Mengisi:<br/>- Email<br/>- Password]
-    InputCred --> Submit[User Klik Tombol Masuk]
-    Submit --> CallAuth[Kirim Request ke<br/>Supabase Auth]
-    CallAuth --> ValidateAuth{Kredensial Valid?}
+    subgraph User["👤 Pengunjung (Guest)"]
+        Start([Start]) --> AccessLogin[Akses Halaman Login]
+        AccessLogin --> InputCred[Input Kredensial:<br/>- Email<br/>- Password]
+        InputCred --> ClickLogin[Klik Tombol Masuk]
+        ErrorAuth[Tampilkan Pesan<br/>Kesalahan Login] --> InputCred
+        DisplayDash[Masuk ke Beranda<br/>Pelanggan] --> End([End])
+    end
     
-    ValidateAuth -->|Tidak| ErrorAuth[Tampilkan Error:<br/>Email/Password Salah]
-    ErrorAuth --> InputCred
+    subgraph System["⚙️ Sistem"]
+        SendAuth[Kirim Request ke<br/>Supabase Auth]
+        SendAuth --> ValidateAuth{Autentikasi OAuth:<br/>Verifikasi Kredensial}
+        ValidateAuth -->|Tidak| ErrorAuth
+        ValidateAuth -->|Ya| CreateSession[Generate Session<br/>Token]
+        CreateSession --> SetCookie[Set Cookie &<br/>Kembali ke Beranda<br/>Pelanggan]
+        SetCookie --> Middleware[Middleware:<br/>Validasi Session]
+        Middleware --> CheckSession{Session Valid?}
+        CheckSession -->|Tidak| ErrorAuth
+        CheckSession -->|Ya| LoadDash[Load Dashboard Page]
+        LoadDash --> FetchData[Fetch User Data<br/>dengan RLS Filter:<br/>- Tasks<br/>- Habits<br/>- Stats]
+        FetchData --> DisplayDash
+    end
     
-    ValidateAuth -->|Ya| CreateSession[Supabase: Create Session<br/>& Set Cookie]
-    CreateSession --> RedirectDash[Redirect ke /dashboard]
-    RedirectDash --> Middleware[Middleware: Validasi Session]
-    Middleware --> CheckSession{Session Valid?}
-    
-    CheckSession -->|Tidak| RedirectLogin[Redirect ke /login]
-    RedirectLogin --> InputCred
-    
-    CheckSession -->|Ya| LoadDash[Load Dashboard Page]
-    LoadDash --> FetchData[Fetch User Data:<br/>- Tasks<br/>- Habits<br/>- Stats]
-    FetchData --> RLS[Database: Apply RLS<br/>Filter by user_id]
-    RLS --> DisplayDash[Tampilkan Dashboard<br/>dengan Data User]
-    DisplayDash --> End([User Berhasil Login])
+    ClickLogin --> SendAuth
 
-    style Start fill:#e1f5e1
-    style End fill:#e1f5e1
-    style ErrorAuth fill:#ffe1e1
-    style DisplayDash fill:#e1f5e1
+    style Start fill:#90EE90
+    style End fill:#90EE90
+    style ErrorAuth fill:#FFB6C1
+    style DisplayDash fill:#90EE90
 ```
 
 **Penjelasan:**
+- **Role User (Pengunjung/Guest)**: Mengakses halaman login, input kredensial, menerima feedback
+- **Role Sistem**: Autentikasi OAuth, generate session token, validasi session, fetch data dengan RLS
 - User memasukkan email dan password
 - Kredensial divalidasi oleh Supabase Auth
 - Jika valid, session dibuat dan cookie di-set
@@ -108,68 +121,77 @@ graph TD
 
 ```mermaid
 graph TD
-    Start([User di Halaman Tasks]) --> Choice{Pilih Aksi}
+    subgraph User["👤 Pelanggan (Customer)"]
+        Start([Start]) --> ViewTasks[Lihat Halaman Tasks]
+        ViewTasks --> Choice{Pilih Aksi}
+        
+        %% CREATE
+        Choice -->|Create| ClickAdd[Klik Tombol<br/>Tambah Tugas]
+        ClickAdd --> FillForm[Isi Form:<br/>- Judul<br/>- Deskripsi<br/>- Mata Kuliah<br/>- Prioritas<br/>- Deadline]
+        FillForm --> SubmitCreate[Klik Simpan]
+        ErrorCreate[Tampilkan Error<br/>Validasi] --> FillForm
+        
+        %% UPDATE
+        Choice -->|Update| SelectTask[Pilih Task]
+        SelectTask --> ClickEdit[Klik Edit]
+        ClickEdit --> ModifyForm[Ubah Data Form]
+        ModifyForm --> SubmitUpdate[Klik Simpan<br/>Perubahan]
+        ErrorUpdate[Tampilkan Error<br/>Validasi] --> ModifyForm
+        
+        %% DELETE
+        Choice -->|Delete| SelectTaskDel[Pilih Task]
+        SelectTaskDel --> ClickDelete[Klik Hapus]
+        
+        %% TOGGLE
+        Choice -->|Toggle Status| SelectTaskToggle[Pilih Task]
+        SelectTaskToggle --> ClickCheckbox[Klik Checkbox]
+        
+        ShowSuccess[Tampilkan Toast:<br/>Operasi Berhasil] --> RefreshView[Refresh Task List]
+        RefreshView --> ViewTasks
+        Choice -->|Selesai| End([End])
+    end
     
-    %% CREATE FLOW
-    Choice -->|Create| ClickAdd[Klik Tombol<br/>Tambah Tugas]
-    ClickAdd --> OpenDialog[Buka Dialog Form]
-    OpenDialog --> FillForm[Isi Form:<br/>- Judul<br/>- Deskripsi<br/>- Mata Kuliah<br/>- Prioritas<br/>- Deadline]
-    FillForm --> SubmitCreate[Klik Simpan]
-    SubmitCreate --> ValidateCreate{Form Valid?}
-    ValidateCreate -->|Tidak| ErrorCreate[Tampilkan Error]
-    ErrorCreate --> FillForm
-    ValidateCreate -->|Ya| InsertDB[INSERT INTO tasks]
-    InsertDB --> RefreshList[Refresh Task List]
-    RefreshList --> ShowSuccess[Tampilkan Toast:<br/>Tugas Berhasil Ditambahkan]
-    ShowSuccess --> End([Selesai])
+    subgraph System["⚙️ Sistem"]
+        %% CREATE SYSTEM
+        ValidateCreate{Form Valid?}
+        ValidateCreate -->|Tidak| ErrorCreate
+        ValidateCreate -->|Ya| InsertDB[INSERT INTO tasks<br/>dengan RLS Filter]
+        InsertDB --> ShowSuccess
+        
+        %% UPDATE SYSTEM
+        ValidateUpdate{Form Valid?}
+        ValidateUpdate -->|Tidak| ErrorUpdate
+        ValidateUpdate -->|Ya| UpdateDB[UPDATE tasks<br/>SET ... WHERE id = ?<br/>AND user_id = auth.uid]
+        UpdateDB --> TriggerUpdate[Trigger: Update<br/>updated_at timestamp]
+        TriggerUpdate --> ShowSuccess
+        
+        %% DELETE SYSTEM
+        SoftDelete[Soft Delete:<br/>UPDATE tasks<br/>SET deleted_at = NOW<br/>WHERE id = ? AND user_id = auth.uid]
+        SoftDelete --> MoveTrash[Task Pindah ke Trash]
+        MoveTrash --> ShowSuccess
+        
+        %% TOGGLE SYSTEM
+        ToggleDB[UPDATE tasks<br/>SET status = CASE<br/>WHEN status = 'todo'<br/>THEN 'done'<br/>ELSE 'todo'<br/>WHERE id = ? AND user_id = auth.uid]
+        ToggleDB --> ShowSuccess
+    end
     
-    %% READ FLOW
-    Choice -->|Read| LoadTasks[Load Tasks dari Database]
-    LoadTasks --> ApplyRLS[Apply RLS:<br/>WHERE user_id = auth.uid]
-    ApplyRLS --> ApplyFilters{Ada Filter?}
-    ApplyFilters -->|Ya| FilterData[Filter by:<br/>- Subject<br/>- Status<br/>- Search Query]
-    ApplyFilters -->|Tidak| DisplayAll[Tampilkan Semua Tasks]
-    FilterData --> DisplayFiltered[Tampilkan Tasks<br/>yang Terfilter]
-    DisplayAll --> End
-    DisplayFiltered --> End
-    
-    %% UPDATE FLOW
-    Choice -->|Update| SelectTask[Pilih Task]
-    SelectTask --> ClickEdit[Klik Edit]
-    ClickEdit --> OpenEditDialog[Buka Dialog Edit]
-    OpenEditDialog --> ModifyForm[Ubah Data Form]
-    ModifyForm --> SubmitUpdate[Klik Simpan Perubahan]
-    SubmitUpdate --> ValidateUpdate{Form Valid?}
-    ValidateUpdate -->|Tidak| ErrorUpdate[Tampilkan Error]
-    ErrorUpdate --> ModifyForm
-    ValidateUpdate -->|Ya| UpdateDB[UPDATE tasks<br/>SET ... WHERE id = ?]
-    UpdateDB --> TriggerUpdate[Trigger: Update<br/>updated_at timestamp]
-    TriggerUpdate --> RefreshList
-    
-    %% DELETE FLOW
-    Choice -->|Delete| SelectTaskDel[Pilih Task]
-    SelectTaskDel --> ClickDelete[Klik Hapus]
-    ClickDelete --> SoftDelete[Soft Delete:<br/>UPDATE tasks<br/>SET deleted_at = NOW]
-    SoftDelete --> MoveTrash[Task Pindah ke Trash]
-    MoveTrash --> RefreshList
-    
-    %% TOGGLE STATUS
-    Choice -->|Toggle Status| SelectTaskToggle[Pilih Task]
-    SelectTaskToggle --> ClickCheckbox[Klik Checkbox]
-    ClickCheckbox --> ToggleDB[UPDATE tasks<br/>SET status = CASE<br/>WHEN status = 'todo'<br/>THEN 'done'<br/>ELSE 'todo']
-    ToggleDB --> RefreshList
+    SubmitCreate --> ValidateCreate
+    SubmitUpdate --> ValidateUpdate
+    ClickDelete --> SoftDelete
+    ClickCheckbox --> ToggleDB
 
-    style Start fill:#e1f5e1
-    style End fill:#e1f5e1
-    style ErrorCreate fill:#ffe1e1
-    style ErrorUpdate fill:#ffe1e1
-    style ShowSuccess fill:#e1f5e1
+    style Start fill:#90EE90
+    style End fill:#90EE90
+    style ErrorCreate fill:#FFB6C1
+    style ErrorUpdate fill:#FFB6C1
+    style ShowSuccess fill:#90EE90
 ```
 
 **Penjelasan:**
-- **CREATE**: User mengisi form dan data di-insert ke database
-- **READ**: Tasks di-load dengan RLS filter, bisa ditambah filter subject/status/search
-- **UPDATE**: User edit task, data di-update dengan trigger auto-update timestamp
+- **Role User (Pelanggan/Customer)**: Melihat tasks, memilih aksi (create/update/delete/toggle), menerima feedback
+- **Role Sistem**: Validasi form, operasi database (INSERT/UPDATE/DELETE), trigger update timestamp, apply RLS
+- **CREATE**: User mengisi form dan sistem insert data ke database dengan RLS filter
+- **UPDATE**: User edit task, sistem update data dengan trigger auto-update timestamp
 - **DELETE**: Soft delete dengan set `deleted_at`, task pindah ke trash
 - **TOGGLE**: Checkbox untuk toggle status todo/done
 
@@ -179,52 +201,74 @@ graph TD
 
 ```mermaid
 graph TD
-    Start([User di Halaman Habits]) --> Choice{Pilih Aksi}
+    subgraph User["👤 Pelanggan (Customer)"]
+        Start([Start]) --> ViewHabits[Lihat Halaman Habits]
+        ViewHabits --> Choice{Pilih Aksi}
+        
+        %% CREATE
+        Choice -->|Tambah Habit| ClickAdd[Klik Tambah Habit]
+        ClickAdd --> InputTitle[Input Nama Habit]
+        InputTitle --> SubmitHabit[Klik Tambah]
+        
+        %% TOGGLE
+        Choice -->|Toggle Habit| SelectDate[Pilih Tanggal<br/>di Tracker Grid]
+        
+        %% VIEW STATS
+        Choice -->|Lihat Stats| ViewStats[Lihat Statistik]
+        DisplayStats[Tampilkan Stats<br/>per Habit] --> ViewHabits
+        
+        %% DELETE
+        Choice -->|Hapus Habit| SelectHabit[Pilih Habit]
+        SelectHabit --> ClickDelete[Klik Hapus]
+        
+        RefreshView[Refresh Habit List] --> ViewHabits
+        Choice -->|Selesai| End([End])
+    end
     
-    %% CREATE HABIT
-    Choice -->|Tambah Habit| ClickAdd[Klik Tambah Habit]
-    ClickAdd --> OpenDialog[Buka Dialog Form]
-    OpenDialog --> InputTitle[Input Nama Habit]
-    InputTitle --> SubmitHabit[Klik Tambah]
-    SubmitHabit --> InsertHabit[INSERT INTO habits<br/>current_streak = 0]
-    InsertHabit --> RefreshHabits[Refresh Habit List]
-    RefreshHabits --> End([Selesai])
+    subgraph System["⚙️ Sistem"]
+        %% CREATE SYSTEM
+        InsertHabit[INSERT INTO habits<br/>current_streak = 0<br/>user_id = auth.uid]
+        InsertHabit --> RefreshView
+        
+        %% TOGGLE SYSTEM
+        CheckLog{Log Exists<br/>untuk Tanggal?}
+        CheckLog -->|Ya| UpdateLog[UPDATE habit_logs<br/>SET completed = NOT completed]
+        CheckLog -->|Tidak| InsertLog[INSERT INTO habit_logs<br/>completed = TRUE]
+        UpdateLog --> TriggerStreak[Trigger:<br/>recalculate_habit_streak]
+        InsertLog --> TriggerStreak
+        TriggerStreak --> CalcStreak[Hitung Streak:<br/>Loop mundur dari hari ini<br/>cek consecutive days]
+        CalcStreak --> UpdateStreak[UPDATE habits<br/>SET current_streak = ?]
+        UpdateStreak --> RefreshView
+        
+        %% STATS SYSTEM
+        CallRPC[Call RPC:<br/>get_habit_stats]
+        CallRPC --> JoinTables[JOIN habits<br/>LEFT JOIN habit_logs<br/>untuk completion rate]
+        JoinTables --> CalcStats[Hitung:<br/>- Completion Rate<br/>- Longest Streak<br/>- Total Days]
+        CalcStats --> DisplayStats
+        
+        %% DELETE SYSTEM
+        SoftDeleteHabit[Soft Delete:<br/>UPDATE habits<br/>SET deleted_at = NOW<br/>WHERE id = ? AND user_id = auth.uid]
+        SoftDeleteHabit --> MoveTrash[Habit Pindah ke Trash]
+        MoveTrash --> RefreshView
+    end
     
-    %% TOGGLE HABIT LOG
-    Choice -->|Toggle Habit| SelectDate[Pilih Tanggal<br/>di Tracker Grid]
-    SelectDate --> CheckLog{Log Exists?}
-    CheckLog -->|Ya| UpdateLog[UPDATE habit_logs<br/>SET completed = NOT completed]
-    CheckLog -->|Tidak| InsertLog[INSERT INTO habit_logs<br/>completed = TRUE]
-    UpdateLog --> TriggerStreak[Trigger:<br/>recalculate_habit_streak]
-    InsertLog --> TriggerStreak
-    TriggerStreak --> CalcStreak[Hitung Streak:<br/>Loop mundur dari hari ini<br/>cek consecutive days]
-    CalcStreak --> UpdateStreak[UPDATE habits<br/>SET current_streak = ?]
-    UpdateStreak --> RefreshHabits
-    
-    %% VIEW STATS
-    Choice -->|Lihat Stats| CallRPC[Call RPC:<br/>get_habit_stats]
-    CallRPC --> JoinTables[JOIN habits<br/>LEFT JOIN habit_logs<br/>untuk completion rate]
-    JoinTables --> CalcStats[Hitung:<br/>- Completion Rate<br/>- Longest Streak<br/>- Total Days]
-    CalcStats --> DisplayStats[Tampilkan Stats<br/>per Habit]
-    DisplayStats --> End
-    
-    %% DELETE HABIT
-    Choice -->|Hapus Habit| SelectHabit[Pilih Habit]
-    SelectHabit --> ClickDelete[Klik Hapus]
-    ClickDelete --> SoftDeleteHabit[Soft Delete:<br/>UPDATE habits<br/>SET deleted_at = NOW]
-    SoftDeleteHabit --> MoveTrash[Habit Pindah ke Trash]
-    MoveTrash --> RefreshHabits
+    SubmitHabit --> InsertHabit
+    SelectDate --> CheckLog
+    ViewStats --> CallRPC
+    ClickDelete --> SoftDeleteHabit
 
-    style Start fill:#e1f5e1
-    style End fill:#e1f5e1
-    style DisplayStats fill:#e1f5e1
+    style Start fill:#90EE90
+    style End fill:#90EE90
+    style DisplayStats fill:#90EE90
 ```
 
 **Penjelasan:**
-- **CREATE**: User membuat habit baru dengan nama, initial streak = 0
+- **Role User (Pelanggan/Customer)**: Melihat habits, memilih aksi (create/toggle/view stats/delete)
+- **Role Sistem**: Insert/update database, recalculate streak dengan trigger, join tables untuk stats
+- **CREATE**: User membuat habit baru dengan nama, sistem set initial streak = 0
 - **TOGGLE**: User centang/uncentang habit di tracker grid
-  - Jika log belum ada, insert baru
-  - Jika sudah ada, toggle completed status
+  - Jika log belum ada, sistem insert baru
+  - Jika sudah ada, sistem toggle completed status
   - Trigger otomatis recalculate streak
 - **STATS**: RPC function join habits dengan habit_logs untuk hitung completion rate
 - **DELETE**: Soft delete habit ke trash
@@ -235,57 +279,70 @@ graph TD
 
 ```mermaid
 graph TD
-    Start([User Ingin Hapus Item]) --> TypeChoice{Tipe Item?}
+    subgraph User["👤 Pelanggan (Customer)"]
+        Start([Start]) --> ViewItem[Lihat Item<br/>Task/Habit]
+        ViewItem --> ClickDelete[Klik Tombol Hapus]
+        ShowInTrash[Item Muncul di<br/>Halaman Trash] --> TrashChoice{User di Trash<br/>Pilih Aksi}
+        
+        %% RESTORE
+        TrashChoice -->|Restore| ClickRestore[Klik Kembalikan]
+        BackToMain[Item Kembali ke<br/>Halaman Utama] --> End([End])
+        
+        %% PERMANENT DELETE
+        TrashChoice -->|Hapus Permanen| ClickPermanent[Klik Hapus Permanen]
+        ShowConfirm[Tampilkan Dialog<br/>Konfirmasi:<br/>Tindakan tidak dapat<br/>dibatalkan] --> UserConfirm{User Konfirmasi?}
+        UserConfirm -->|Tidak| ShowInTrash
+        ShowSuccess[Tampilkan Toast:<br/>Berhasil Dihapus Permanen] --> End
+    end
     
-    %% SOFT DELETE FLOW
-    TypeChoice -->|Task/Habit| ClickDelete[Klik Tombol Hapus]
-    ClickDelete --> CallSoftDelete[Call Function:<br/>soft_delete_task atau<br/>soft_delete_habit]
-    CallSoftDelete --> UpdateDeleted[UPDATE table<br/>SET deleted_at = NOW<br/>WHERE id = ? AND user_id = auth.uid]
-    UpdateDeleted --> HideFromMain[Item Hilang dari<br/>Halaman Utama]
-    HideFromMain --> ShowInTrash[Item Muncul di<br/>Halaman Trash]
-    ShowInTrash --> TrashChoice{User di Trash<br/>Pilih Aksi}
+    subgraph System["⚙️ Sistem"]
+        %% SOFT DELETE
+        CallSoftDelete[Call Function:<br/>soft_delete_task atau<br/>soft_delete_habit]
+        CallSoftDelete --> UpdateDeleted[UPDATE table<br/>SET deleted_at = NOW<br/>WHERE id = ? AND user_id = auth.uid]
+        UpdateDeleted --> HideFromMain[Item Hilang dari<br/>Halaman Utama]
+        HideFromMain --> ShowInTrash
+        
+        %% RESTORE
+        CallRestore[Call Function:<br/>restore_task atau<br/>restore_habit]
+        CallRestore --> UpdateRestore[UPDATE table<br/>SET deleted_at = NULL<br/>WHERE id = ? AND user_id = auth.uid]
+        UpdateRestore --> BackToMain
+        
+        %% PERMANENT DELETE
+        ShowConfirm
+        UserConfirm -->|Ya| CallPermanent[Call Function:<br/>permanent_delete_task atau<br/>permanent_delete_habit]
+        CallPermanent --> DeleteDB[DELETE FROM table<br/>WHERE id = ? AND user_id = auth.uid]
+        DeleteDB --> CascadeDelete[Cascade Delete:<br/>Related Records<br/>Terhapus Otomatis]
+        CascadeDelete --> RemoveFromTrash[Item Hilang dari Trash]
+        RemoveFromTrash --> ShowSuccess
+    end
     
-    %% RESTORE FLOW
-    TrashChoice -->|Restore| ClickRestore[Klik Kembalikan]
-    ClickRestore --> CallRestore[Call Function:<br/>restore_task atau<br/>restore_habit]
-    CallRestore --> UpdateRestore[UPDATE table<br/>SET deleted_at = NULL<br/>WHERE id = ? AND user_id = auth.uid]
-    UpdateRestore --> BackToMain[Item Kembali ke<br/>Halaman Utama]
-    BackToMain --> End([Selesai])
-    
-    %% PERMANENT DELETE FLOW
-    TrashChoice -->|Hapus Permanen| ClickPermanent[Klik Hapus Permanen]
-    ClickPermanent --> ShowConfirm[Tampilkan Dialog<br/>Konfirmasi:<br/>Tindakan tidak dapat<br/>dibatalkan]
-    ShowConfirm --> UserConfirm{User Konfirmasi?}
-    UserConfirm -->|Tidak| CancelDelete[Batal Hapus]
-    CancelDelete --> ShowInTrash
-    UserConfirm -->|Ya| CallPermanent[Call Function:<br/>permanent_delete_task atau<br/>permanent_delete_habit]
-    CallPermanent --> DeleteDB[DELETE FROM table<br/>WHERE id = ? AND user_id = auth.uid]
-    DeleteDB --> CascadeDelete[Cascade Delete:<br/>Related Records<br/>Terhapus Otomatis]
-    CascadeDelete --> RemoveFromTrash[Item Hilang dari Trash]
-    RemoveFromTrash --> ShowSuccess[Tampilkan Toast:<br/>Berhasil Dihapus Permanen]
-    ShowSuccess --> End
+    ClickDelete --> CallSoftDelete
+    ClickRestore --> CallRestore
+    ClickPermanent --> ShowConfirm
 
-    style Start fill:#e1f5e1
-    style End fill:#e1f5e1
-    style ShowConfirm fill:#fff3cd
-    style DeleteDB fill:#ffe1e1
-    style ShowSuccess fill:#e1f5e1
+    style Start fill:#90EE90
+    style End fill:#90EE90
+    style ShowConfirm fill:#FFF8DC
+    style DeleteDB fill:#FFB6C1
+    style ShowSuccess fill:#90EE90
 ```
 
 **Penjelasan:**
+- **Role User (Pelanggan/Customer)**: Klik hapus, lihat item di trash, pilih restore atau hapus permanen, konfirmasi
+- **Role Sistem**: Soft delete (UPDATE deleted_at), restore (SET deleted_at = NULL), hard delete (DELETE FROM), cascade delete
 - **SOFT DELETE**: 
-  - Set `deleted_at = NOW()`
+  - Sistem set `deleted_at = NOW()`
   - Item hilang dari halaman utama
   - Item muncul di trash
   - Data masih ada di database
   
 - **RESTORE**:
-  - Set `deleted_at = NULL`
+  - Sistem set `deleted_at = NULL`
   - Item kembali ke halaman utama
   - Reversible action
   
 - **HARD DELETE**:
-  - Tampilkan konfirmasi dialog
+  - Sistem tampilkan konfirmasi dialog
   - DELETE FROM database
   - Cascade delete untuk related records (habit_logs)
   - Irreversible action
@@ -296,49 +353,64 @@ graph TD
 
 ```mermaid
 graph TD
-    Start([User di Halaman Tasks]) --> LoadAll[Load Semua Tasks<br/>dari Database]
-    LoadAll --> ApplyRLS[Apply RLS Filter:<br/>WHERE user_id = auth.uid<br/>AND deleted_at IS NULL]
-    ApplyRLS --> DisplayInitial[Tampilkan Semua Tasks]
-    DisplayInitial --> UserAction{User Action}
+    subgraph User["👤 Pelanggan (Customer)"]
+        Start([Start]) --> ViewTasks[Lihat Halaman Tasks]
+        DisplayInitial[Tampilkan Semua Tasks] --> UserAction{User Action}
+        
+        %% SEARCH
+        UserAction -->|Ketik di Search Box| InputSearch[User Mengetik Query]
+        
+        %% FILTER SUBJECT
+        UserAction -->|Pilih Subject| SelectSubject[User Pilih<br/>Mata Kuliah dari Dropdown]
+        
+        %% FILTER STATUS
+        UserAction -->|Pilih Status| SelectStatus[User Pilih Status:<br/>- All<br/>- Todo<br/>- Done]
+        
+        %% CLEAR
+        UserAction -->|Clear| ClearAll[Clear Semua Filter]
+        
+        ShowResults[Tampilkan Tasks<br/>yang Match] --> UserAction
+        ShowEmpty[Tampilkan Empty State:<br/>Tidak ada hasil<br/>untuk query] --> UserAction
+        ClearAll --> DisplayInitial
+        UserAction -->|Selesai| End([End])
+    end
     
-    %% SEARCH FLOW
-    UserAction -->|Ketik di Search Box| InputSearch[User Mengetik Query]
-    InputSearch --> SearchFilter[Filter Client-Side:<br/>WHERE LOWER title LIKE %query%<br/>OR LOWER description LIKE %query%]
-    SearchFilter --> UpdateDisplay[Update Display<br/>Real-time]
-    UpdateDisplay --> CheckResults{Ada Hasil?}
-    CheckResults -->|Ya| ShowResults[Tampilkan Tasks<br/>yang Match]
-    CheckResults -->|Tidak| ShowEmpty[Tampilkan Empty State:<br/>Tidak ada hasil<br/>untuk query]
-    ShowResults --> UserAction
-    ShowEmpty --> UserAction
+    subgraph System["⚙️ Sistem"]
+        LoadAll[Load Semua Tasks<br/>dari Database]
+        LoadAll --> ApplyRLS[Apply RLS Filter:<br/>WHERE user_id = auth.uid<br/>AND deleted_at IS NULL]
+        ApplyRLS --> DisplayInitial
+        
+        %% SEARCH SYSTEM
+        SearchFilter[Filter Client-Side:<br/>WHERE LOWER title LIKE %query%<br/>OR LOWER description LIKE %query%]
+        SearchFilter --> UpdateDisplay[Update Display<br/>Real-time]
+        
+        %% FILTER SUBJECT SYSTEM
+        SubjectFilter[Filter Client-Side:<br/>WHERE subject = selected]
+        SubjectFilter --> UpdateDisplay
+        
+        %% FILTER STATUS SYSTEM
+        StatusFilter[Filter Client-Side:<br/>WHERE status = selected]
+        StatusFilter --> UpdateDisplay
+        
+        UpdateDisplay --> CheckResults{Ada Hasil?}
+        CheckResults -->|Ya| ShowResults
+        CheckResults -->|Tidak| ShowEmpty
+    end
     
-    %% FILTER BY SUBJECT
-    UserAction -->|Pilih Subject| SelectSubject[User Pilih<br/>Mata Kuliah dari Dropdown]
-    SelectSubject --> SubjectFilter[Filter Client-Side:<br/>WHERE subject = selected]
-    SubjectFilter --> UpdateDisplay
-    
-    %% FILTER BY STATUS
-    UserAction -->|Pilih Status| SelectStatus[User Pilih Status:<br/>- All<br/>- Todo<br/>- Done]
-    SelectStatus --> StatusFilter[Filter Client-Side:<br/>WHERE status = selected]
-    StatusFilter --> UpdateDisplay
-    
-    %% COMBINED FILTERS
-    UserAction -->|Multiple Filters| CombineFilters[Kombinasi Filters:<br/>Search AND Subject AND Status]
-    CombineFilters --> ApplyAll[Apply Semua Filter<br/>Secara Bersamaan]
-    ApplyAll --> UpdateDisplay
-    
-    %% CLEAR FILTERS
-    UserAction -->|Clear| ClearAll[Clear Semua Filter]
-    ClearAll --> DisplayInitial
-    
-    UserAction -->|Selesai| End([Selesai])
+    ViewTasks --> LoadAll
+    InputSearch --> SearchFilter
+    SelectSubject --> SubjectFilter
+    SelectStatus --> StatusFilter
 
-    style Start fill:#e1f5e1
-    style End fill:#e1f5e1
-    style ShowEmpty fill:#fff3cd
-    style ShowResults fill:#e1f5e1
+    style Start fill:#90EE90
+    style End fill:#90EE90
+    style ShowEmpty fill:#FFF8DC
+    style ShowResults fill:#90EE90
 ```
 
 **Penjelasan:**
+- **Role User (Pelanggan/Customer)**: Melihat tasks, mengetik search query, memilih filter subject/status, clear filter
+- **Role Sistem**: Load tasks dengan RLS, apply filter client-side, update display real-time, cek hasil
 - Tasks di-load dari database dengan RLS filter
 - **Search**: Real-time filter berdasarkan title atau description (case-insensitive)
 - **Filter Subject**: Filter berdasarkan mata kuliah yang dipilih
@@ -353,60 +425,66 @@ graph TD
 
 ```mermaid
 graph TD
-    Start([User Klik Menu Analytics]) --> LoadPage[Load Analytics Page]
-    LoadPage --> ParallelFetch{Fetch Data Paralel}
+    subgraph User["👤 Pelanggan (Customer)"]
+        Start([Start]) --> ClickMenu[Klik Menu Analytics]
+        RenderComplete[Tampilkan Complete<br/>Analytics Dashboard] --> UserInteract{User Interaksi}
+        UserInteract -->|Hover Chart| ShowTooltip[Tampilkan Tooltip<br/>Detail Data]
+        ShowTooltip --> UserInteract
+        UserInteract -->|Refresh| ClickMenu
+        UserInteract -->|Selesai| End([End])
+    end
     
-    %% DASHBOARD SUMMARY
-    ParallelFetch -->|Query 1| CallSummary[Call RPC:<br/>get_dashboard_summary]
-    CallSummary --> CalcSummary[Hitung:<br/>- Total Tasks<br/>- Completed Tasks<br/>- Pending Tasks<br/>- Overdue Tasks<br/>- Total Habits<br/>- Total Streak]
-    CalcSummary --> DisplayCards[Tampilkan Stats Cards]
+    subgraph System["⚙️ Sistem"]
+        LoadPage[Load Analytics Page]
+        LoadPage --> ParallelFetch{Fetch Data Paralel}
+        
+        %% DASHBOARD SUMMARY
+        ParallelFetch -->|Query 1| CallSummary[Call RPC:<br/>get_dashboard_summary]
+        CallSummary --> CalcSummary[Hitung:<br/>- Total Tasks<br/>- Completed Tasks<br/>- Pending Tasks<br/>- Overdue Tasks<br/>- Total Habits<br/>- Total Streak]
+        CalcSummary --> DisplayCards[Render Stats Cards]
+        
+        %% WEEKLY STATS
+        ParallelFetch -->|Query 2| CallWeekly[Call RPC:<br/>get_weekly_task_stats]
+        CallWeekly --> JoinWeekly[LEFT JOIN tasks<br/>dengan generate_series<br/>7 hari terakhir]
+        JoinWeekly --> GroupByDate[GROUP BY date<br/>COUNT completed tasks]
+        GroupByDate --> DisplayChart[Render Bar Chart:<br/>Progress Tugas Mingguan]
+        
+        %% SUBJECT STATS
+        ParallelFetch -->|Query 3| CallSubject[Call RPC:<br/>get_subject_task_stats]
+        CallSubject --> GroupBySubject[GROUP BY subject<br/>Hitung total, completed,<br/>pending, overdue]
+        GroupBySubject --> CalcCompletion[Hitung Completion Rate<br/>per Subject]
+        CalcCompletion --> DisplayProgress[Render Progress Bars<br/>per Mata Kuliah]
+        
+        %% HABIT STATS
+        ParallelFetch -->|Query 4| CallHabit[Call RPC:<br/>get_habit_stats]
+        CallHabit --> JoinHabitLogs[JOIN habits<br/>LEFT JOIN habit_logs<br/>30 hari terakhir]
+        JoinHabitLogs --> CalcHabitStats[Hitung:<br/>- Current Streak<br/>- Longest Streak<br/>- Completion Rate<br/>- Total Days]
+        CalcHabitStats --> DisplayHabitChart[Render:<br/>- Avg Completion Rate<br/>- Per-Habit Progress]
+        
+        %% PRIORITY BREAKDOWN
+        ParallelFetch -->|Query 5| LoadTasks[Load All Tasks<br/>dengan RLS Filter]
+        LoadTasks --> GroupByPriority[Group by Priority:<br/>- High<br/>- Medium<br/>- Low]
+        GroupByPriority --> DisplayPriority[Render Priority Cards<br/>dengan Count]
+        
+        %% COMBINE ALL
+        DisplayCards --> WaitAll[Wait All Queries]
+        DisplayChart --> WaitAll
+        DisplayProgress --> WaitAll
+        DisplayHabitChart --> WaitAll
+        DisplayPriority --> WaitAll
+        WaitAll --> RenderComplete
+    end
     
-    %% WEEKLY STATS
-    ParallelFetch -->|Query 2| CallWeekly[Call RPC:<br/>get_weekly_task_stats]
-    CallWeekly --> JoinWeekly[LEFT JOIN tasks<br/>dengan generate_series<br/>7 hari terakhir]
-    JoinWeekly --> GroupByDate[GROUP BY date<br/>COUNT completed tasks]
-    GroupByDate --> DisplayChart[Tampilkan Bar Chart:<br/>Progress Tugas Mingguan]
-    
-    %% SUBJECT STATS
-    ParallelFetch -->|Query 3| CallSubject[Call RPC:<br/>get_subject_task_stats]
-    CallSubject --> GroupBySubject[GROUP BY subject<br/>Hitung total, completed,<br/>pending, overdue]
-    GroupBySubject --> CalcCompletion[Hitung Completion Rate<br/>per Subject]
-    CalcCompletion --> DisplayProgress[Tampilkan Progress Bars<br/>per Mata Kuliah]
-    
-    %% HABIT STATS
-    ParallelFetch -->|Query 4| CallHabit[Call RPC:<br/>get_habit_stats]
-    CallHabit --> JoinHabitLogs[JOIN habits<br/>LEFT JOIN habit_logs<br/>30 hari terakhir]
-    JoinHabitLogs --> CalcHabitStats[Hitung:<br/>- Current Streak<br/>- Longest Streak<br/>- Completion Rate<br/>- Total Days]
-    CalcHabitStats --> DisplayHabitChart[Tampilkan:<br/>- Avg Completion Rate<br/>- Per-Habit Progress]
-    
-    %% PRIORITY BREAKDOWN
-    ParallelFetch -->|Query 5| LoadTasks[Load All Tasks]
-    LoadTasks --> GroupByPriority[Group by Priority:<br/>- High<br/>- Medium<br/>- Low]
-    GroupByPriority --> DisplayPriority[Tampilkan Priority Cards<br/>dengan Count]
-    
-    %% COMBINE ALL
-    DisplayCards --> WaitAll[Wait All Queries]
-    DisplayChart --> WaitAll
-    DisplayProgress --> WaitAll
-    DisplayHabitChart --> WaitAll
-    DisplayPriority --> WaitAll
-    
-    WaitAll --> RenderComplete[Render Complete<br/>Analytics Dashboard]
-    RenderComplete --> UserInteract{User Interaksi}
-    
-    UserInteract -->|Hover Chart| ShowTooltip[Tampilkan Tooltip<br/>Detail Data]
-    ShowTooltip --> UserInteract
-    
-    UserInteract -->|Refresh| LoadPage
-    
-    UserInteract -->|Selesai| End([Selesai])
+    ClickMenu --> LoadPage
 
-    style Start fill:#e1f5e1
-    style End fill:#e1f5e1
-    style RenderComplete fill:#e1f5e1
+    style Start fill:#90EE90
+    style End fill:#90EE90
+    style RenderComplete fill:#90EE90
 ```
 
 **Penjelasan:**
+- **Role User (Pelanggan/Customer)**: Klik menu analytics, lihat dashboard, hover chart untuk tooltip, refresh
+- **Role Sistem**: Load page, fetch 5 query paralel (RPC), render charts dan stats cards
 - Analytics page melakukan **5 query paralel** untuk performa optimal
 - **Dashboard Summary**: Agregasi total tasks, habits, streak
 - **Weekly Stats**: JOIN tasks dengan generate_series untuk 7 hari terakhir, tampil di bar chart
@@ -422,119 +500,89 @@ graph TD
 
 ```mermaid
 graph TD
-    Start([Sistem Notifikasi Aktif]) --> ParallelCron{Cron Jobs Berjalan Paralel}
+    subgraph System["⚙️ Sistem - Cron Jobs"]
+        Start([Sistem Notifikasi Aktif]) --> ParallelCron{Cron Jobs Berjalan Paralel}
+        
+        %% DEADLINE NOTIFICATION
+        ParallelCron -->|Daily 8 AM| CronDeadline[Cron: check-deadlines<br/>Berjalan Setiap Hari<br/>Pukul 08:00 WIB]
+        CronDeadline --> QueryDeadline[Query Tasks:<br/>WHERE due_date = CURRENT_DATE + 1<br/>AND status != 'done'<br/>AND deleted_at IS NULL]
+        QueryDeadline --> CheckDeadlineTasks{Ada Tasks<br/>Deadline Besok?}
+        CheckDeadlineTasks -->|Tidak| EndDeadline([Selesai - Deadline])
+        CheckDeadlineTasks -->|Ya| LoopDeadlineTasks[Loop Setiap Task]
+        LoopDeadlineTasks --> GetUserPrefs[Get User Preferences:<br/>deadline_reminders enabled?]
+        GetUserPrefs --> CheckDeadlineEnabled{Enabled?}
+        CheckDeadlineEnabled -->|Tidak| NextDeadlineTask[Next Task]
+        CheckDeadlineEnabled -->|Ya| GetFCMTokens[Get FCM Tokens<br/>untuk User]
+        GetFCMTokens --> CheckTokens{Ada Token?}
+        CheckTokens -->|Tidak| NextDeadlineTask
+        CheckTokens -->|Ya| SendDeadlineNotif[Send Push Notification:<br/>Deadline besok untuk task X]
+        SendDeadlineNotif --> SaveNotifHistory[INSERT INTO notifications<br/>type = 'deadline']
+        SaveNotifHistory --> UpdateTokenUsage[UPDATE fcm_tokens<br/>SET last_used_at = NOW]
+        UpdateTokenUsage --> NextDeadlineTask
+        NextDeadlineTask --> CheckMoreDeadline{Ada Task Lagi?}
+        CheckMoreDeadline -->|Ya| LoopDeadlineTasks
+        CheckMoreDeadline -->|Tidak| EndDeadline
+        
+        %% URGENT DEADLINE
+        ParallelCron -->|Every 6 Hours| CronUrgent[Cron: check-urgent-deadlines<br/>Berjalan Setiap 6 Jam]
+        CronUrgent --> QueryUrgent[Query Tasks:<br/>WHERE due_date <= NOW + 6 hours<br/>AND status != 'done']
+        QueryUrgent --> CheckUrgentTasks{Ada Tasks<br/>Urgent?}
+        CheckUrgentTasks -->|Tidak| EndUrgent([Selesai - Urgent])
+        CheckUrgentTasks -->|Ya| SendUrgentNotif[Send Push Notification:<br/>URGENT Deadline 6 jam lagi]
+        SendUrgentNotif --> SaveUrgentHistory[INSERT INTO notifications<br/>type = 'deadline']
+        SaveUrgentHistory --> EndUrgent
+        
+        %% HABIT REMINDER
+        ParallelCron -->|Daily at User Time| CronHabit[Cron: check-habits<br/>Berjalan Sesuai<br/>User reminder_time]
+        CronHabit --> QueryHabits[Query Habits:<br/>WHERE deleted_at IS NULL<br/>AND user active]
+        QueryHabits --> CheckHabits{Ada Habits?}
+        CheckHabits -->|Tidak| EndHabit([Selesai - Habit])
+        CheckHabits -->|Ya| CheckHabitLog[Check habit_logs:<br/>Sudah complete hari ini?]
+        CheckHabitLog --> IsCompleted{Completed?}
+        IsCompleted -->|Ya| EndHabit
+        IsCompleted -->|Tidak| SendHabitNotif[Send Push Notification:<br/>Jangan lupa habit X hari ini]
+        SendHabitNotif --> SaveHabitHistory[INSERT INTO notifications<br/>type = 'habit_reminder']
+        SaveHabitHistory --> EndHabit
+        
+        %% TOKEN CLEANUP
+        ParallelCron -->|Weekly| CronCleanup[Cron: cleanup-tokens<br/>Berjalan Setiap Minggu]
+        CronCleanup --> QueryOldTokens[Query FCM Tokens:<br/>WHERE last_used_at < NOW - 30 days]
+        QueryOldTokens --> CheckOldTokens{Ada Token Lama?}
+        CheckOldTokens -->|Tidak| EndCleanup([Selesai - Cleanup])
+        CheckOldTokens -->|Ya| DeleteOldTokens[DELETE FROM fcm_tokens<br/>WHERE last_used_at < NOW - 30 days]
+        DeleteOldTokens --> LogCleanup[Log: X tokens dihapus]
+        LogCleanup --> EndCleanup
+    end
     
-    %% DEADLINE NOTIFICATION CRON
-    ParallelCron -->|Daily 8 AM| CronDeadline[Cron: check-deadlines<br/>Berjalan Setiap Hari<br/>Pukul 08:00 WIB]
-    CronDeadline --> QueryDeadline[Query Tasks:<br/>WHERE due_date = CURRENT_DATE + 1<br/>AND status != 'done'<br/>AND deleted_at IS NULL]
-    QueryDeadline --> CheckDeadlineTasks{Ada Tasks<br/>Deadline Besok?}
-    CheckDeadlineTasks -->|Tidak| EndDeadline([Selesai - Deadline])
-    CheckDeadlineTasks -->|Ya| LoopDeadlineTasks[Loop Setiap Task]
-    LoopDeadlineTasks --> GetUserPrefs[Get User Preferences:<br/>deadline_reminders enabled?]
-    GetUserPrefs --> CheckDeadlineEnabled{Enabled?}
-    CheckDeadlineEnabled -->|Tidak| NextDeadlineTask[Next Task]
-    CheckDeadlineEnabled -->|Ya| GetFCMTokens[Get FCM Tokens<br/>untuk User]
-    GetFCMTokens --> CheckTokens{Ada Token?}
-    CheckTokens -->|Tidak| NextDeadlineTask
-    CheckTokens -->|Ya| SendDeadlineNotif[Send Push Notification:<br/>Deadline besok untuk task X]
-    SendDeadlineNotif --> SaveNotifHistory[INSERT INTO notifications<br/>type = 'deadline']
-    SaveNotifHistory --> UpdateTokenUsage[UPDATE fcm_tokens<br/>SET last_used_at = NOW]
-    UpdateTokenUsage --> NextDeadlineTask
-    NextDeadlineTask --> CheckMoreDeadline{Ada Task Lagi?}
-    CheckMoreDeadline -->|Ya| LoopDeadlineTasks
-    CheckMoreDeadline -->|Tidak| EndDeadline
+    subgraph User["👤 Pelanggan (Customer)"]
+        ReceiveNotif[Terima Push Notification<br/>di Device]
+        ReceiveNotif --> UserSeeNotif[Lihat Notifikasi]
+        UserSeeNotif --> EndUser([End])
+    end
     
-    %% URGENT DEADLINE CRON
-    ParallelCron -->|Every 6 Hours| CronUrgent[Cron: check-urgent-deadlines<br/>Berjalan Setiap 6 Jam]
-    CronUrgent --> QueryUrgent[Query Tasks:<br/>WHERE due_date <= NOW + 6 hours<br/>AND status != 'done'<br/>AND deleted_at IS NULL]
-    QueryUrgent --> CheckUrgentTasks{Ada Tasks<br/>Urgent?}
-    CheckUrgentTasks -->|Tidak| EndUrgent([Selesai - Urgent])
-    CheckUrgentTasks -->|Ya| LoopUrgentTasks[Loop Setiap Task]
-    LoopUrgentTasks --> GetUrgentPrefs[Get User Preferences:<br/>deadline_reminders enabled?]
-    GetUrgentPrefs --> CheckUrgentEnabled{Enabled?}
-    CheckUrgentEnabled -->|Tidak| NextUrgentTask[Next Task]
-    CheckUrgentEnabled -->|Ya| GetUrgentTokens[Get FCM Tokens]
-    GetUrgentTokens --> CheckUrgentTokens{Ada Token?}
-    CheckUrgentTokens -->|Tidak| NextUrgentTask
-    CheckUrgentTokens -->|Ya| SendUrgentNotif[Send Push Notification:<br/>URGENT Deadline 6 jam lagi]
-    SendUrgentNotif --> SaveUrgentHistory[INSERT INTO notifications<br/>type = 'deadline']
-    SaveUrgentHistory --> UpdateUrgentToken[UPDATE last_used_at]
-    UpdateUrgentToken --> NextUrgentTask
-    NextUrgentTask --> CheckMoreUrgent{Ada Task Lagi?}
-    CheckMoreUrgent -->|Ya| LoopUrgentTasks
-    CheckMoreUrgent -->|Tidak| EndUrgent
-    
-    %% HABIT REMINDER CRON
-    ParallelCron -->|Daily at User Time| CronHabit[Cron: check-habits<br/>Berjalan Sesuai<br/>User reminder_time]
-    CronHabit --> QueryHabits[Query Habits:<br/>WHERE deleted_at IS NULL<br/>AND user active]
-    QueryHabits --> CheckHabits{Ada Habits?}
-    CheckHabits -->|Tidak| EndHabit([Selesai - Habit])
-    CheckHabits -->|Ya| LoopHabits[Loop Setiap Habit]
-    LoopHabits --> CheckHabitLog[Check habit_logs:<br/>Sudah complete hari ini?]
-    CheckHabitLog --> IsCompleted{Completed?}
-    IsCompleted -->|Ya| NextHabit[Next Habit]
-    IsCompleted -->|Tidak| GetHabitPrefs[Get User Preferences:<br/>habit_reminders enabled?]
-    GetHabitPrefs --> CheckHabitEnabled{Enabled?}
-    CheckHabitEnabled -->|Tidak| NextHabit
-    CheckHabitEnabled -->|Ya| GetHabitTokens[Get FCM Tokens]
-    GetHabitTokens --> CheckHabitTokens{Ada Token?}
-    CheckHabitTokens -->|Tidak| NextHabit
-    CheckHabitTokens -->|Ya| SendHabitNotif[Send Push Notification:<br/>Jangan lupa habit X hari ini]
-    SendHabitNotif --> SaveHabitHistory[INSERT INTO notifications<br/>type = 'habit_reminder']
-    SaveHabitHistory --> UpdateHabitToken[UPDATE last_used_at]
-    UpdateHabitToken --> NextHabit
-    NextHabit --> CheckMoreHabits{Ada Habit Lagi?}
-    CheckMoreHabits -->|Ya| LoopHabits
-    CheckMoreHabits -->|Tidak| EndHabit
-    
-    %% TOKEN CLEANUP CRON
-    ParallelCron -->|Weekly| CronCleanup[Cron: cleanup-tokens<br/>Berjalan Setiap Minggu]
-    CronCleanup --> QueryOldTokens[Query FCM Tokens:<br/>WHERE last_used_at < NOW - 30 days]
-    QueryOldTokens --> CheckOldTokens{Ada Token Lama?}
-    CheckOldTokens -->|Tidak| EndCleanup([Selesai - Cleanup])
-    CheckOldTokens -->|Ya| DeleteOldTokens[DELETE FROM fcm_tokens<br/>WHERE last_used_at < NOW - 30 days]
-    DeleteOldTokens --> LogCleanup[Log: X tokens dihapus]
-    LogCleanup --> EndCleanup
-    
-    %% REAL-TIME NOTIFICATIONS
-    ParallelCron -->|Real-time| RealTimeEvents[Event-Driven Notifications]
-    RealTimeEvents --> EventChoice{Event Type}
-    
-    EventChoice -->|Task Complete| TaskDone[User Mark Task as Done]
-    TaskDone --> CheckTaskNotif[Check Preferences:<br/>task_complete enabled?]
-    CheckTaskNotif --> TaskNotifEnabled{Enabled?}
-    TaskNotifEnabled -->|Ya| SendTaskNotif[Send Notification:<br/>Selamat task X selesai]
-    TaskNotifEnabled -->|Tidak| EndRealTime([Selesai - Real-time])
-    SendTaskNotif --> SaveTaskNotif[INSERT INTO notifications<br/>type = 'task_complete']
-    SaveTaskNotif --> EndRealTime
-    
-    EventChoice -->|Streak Milestone| StreakAchieved[User Reach Streak Milestone<br/>7, 30, 100 days]
-    StreakAchieved --> CheckStreakNotif[Check Preferences:<br/>streak_milestones enabled?]
-    CheckStreakNotif --> StreakNotifEnabled{Enabled?}
-    StreakNotifEnabled -->|Ya| SendStreakNotif[Send Notification:<br/>Streak X hari tercapai]
-    StreakNotifEnabled -->|Tidak| EndRealTime
-    SendStreakNotif --> SaveStreakNotif[INSERT INTO notifications<br/>type = 'streak_milestone']
-    SaveStreakNotif --> EndRealTime
+    SendDeadlineNotif -.->|Push| ReceiveNotif
+    SendUrgentNotif -.->|Push| ReceiveNotif
+    SendHabitNotif -.->|Push| ReceiveNotif
 
-    style Start fill:#e1f5e1
-    style EndDeadline fill:#e1f5e1
-    style EndUrgent fill:#e1f5e1
-    style EndHabit fill:#e1f5e1
-    style EndCleanup fill:#e1f5e1
-    style EndRealTime fill:#e1f5e1
-    style CronDeadline fill:#d1ecf1
-    style CronUrgent fill:#fff3cd
-    style CronHabit fill:#d4edda
-    style CronCleanup fill:#f8d7da
+    style Start fill:#87CEEB
+    style EndDeadline fill:#90EE90
+    style EndUrgent fill:#90EE90
+    style EndHabit fill:#90EE90
+    style EndCleanup fill:#90EE90
+    style EndUser fill:#90EE90
+    style CronDeadline fill:#B0E0E6
+    style CronUrgent fill:#FFF8DC
+    style CronHabit fill:#98FB98
+    style CronCleanup fill:#FFB6C1
 ```
 
 **Penjelasan:**
-- **4 Cron Jobs** berjalan paralel untuk automated notifications
+- **Role Sistem (Cron Jobs)**: 4 cron jobs berjalan paralel untuk automated notifications
+- **Role User (Pelanggan)**: Menerima push notification di device
 - **Deadline Notification**: Cek tasks yang deadline besok, kirim notif pukul 8 pagi
 - **Urgent Deadline**: Cek tasks yang deadline dalam 6 jam, kirim notif setiap 6 jam
 - **Habit Reminder**: Cek habits yang belum complete hari ini, kirim sesuai user's reminder_time
 - **Token Cleanup**: Hapus FCM tokens yang tidak digunakan >30 hari (weekly)
-- **Real-time Notifications**: Event-driven untuk task complete dan streak milestone
 - Semua notifikasi cek user preferences terlebih dahulu
 - History disimpan di tabel `notifications`
 
@@ -544,55 +592,64 @@ graph TD
 
 ```mermaid
 graph TD
-    Start([User Buka Aplikasi]) --> CheckPermission{Browser Support<br/>Push Notifications?}
-    CheckPermission -->|Tidak| ShowUnsupported[Tampilkan Pesan:<br/>Browser tidak support<br/>push notifications]
-    ShowUnsupported --> End([Selesai])
+    subgraph User["👤 Pelanggan (Customer)"]
+        Start([Start]) --> OpenApp[Buka Aplikasi]
+        ShowPrompt[Tampilkan Prompt:<br/>Aktifkan Notifikasi?] --> UserChoice{User Klik<br/>Aktifkan?}
+        UserChoice -->|Tidak| Dismiss[User Dismiss Prompt]
+        Dismiss --> End([End])
+        UserChoice -->|Ya| ClickAllow[Klik Aktifkan]
+        BrowserPrompt[Browser Tampilkan<br/>Native Permission Dialog] --> PermissionResult{User Response}
+        PermissionResult -->|Denied| ShowDenied[Tampilkan Pesan:<br/>Notifikasi diblokir<br/>Cara enable di settings]
+        ShowDenied --> End
+        PermissionResult -->|Granted| WaitProcess[Tunggu Proses...]
+        ShowSuccess[Tampilkan Toast:<br/>Notifikasi berhasil diaktifkan] --> ReceiveTest[Terima Test Notification:<br/>Selamat datang di FlowDay]
+        ReceiveTest --> End
+    end
     
-    CheckPermission -->|Ya| CheckExisting{FCM Token<br/>Sudah Ada?}
-    CheckExisting -->|Ya| TokenValid[Token Valid<br/>Notifikasi Aktif]
-    TokenValid --> End
+    subgraph System["⚙️ Sistem"]
+        CheckPermission{Browser Support<br/>Push Notifications?}
+        CheckPermission -->|Tidak| ShowUnsupported[Tampilkan Pesan:<br/>Browser tidak support<br/>push notifications]
+        ShowUnsupported --> End
+        CheckPermission -->|Ya| CheckExisting{FCM Token<br/>Sudah Ada?}
+        CheckExisting -->|Ya| TokenValid[Token Valid<br/>Notifikasi Aktif]
+        TokenValid --> End
+        CheckExisting -->|Tidak| ShowPrompt
+        
+        RequestPermission[Request Browser Permission:<br/>Notification.requestPermission]
+        RequestPermission --> BrowserPrompt
+        
+        InitFirebase[Initialize Firebase<br/>Cloud Messaging]
+        InitFirebase --> GetToken[Request FCM Token:<br/>getToken dari Firebase]
+        GetToken --> TokenReceived{Token<br/>Berhasil?}
+        TokenReceived -->|Tidak| ShowError[Tampilkan Error:<br/>Gagal mendapatkan token]
+        ShowError --> End
+        TokenReceived -->|Ya| GetDeviceInfo[Collect Device Info:<br/>- Browser<br/>- OS<br/>- Device Type]
+        GetDeviceInfo --> SaveToken[POST /api/notifications/register<br/>Save Token ke Database]
+        SaveToken --> InsertDB[INSERT INTO fcm_tokens<br/>user_id, token, device_info]
+        InsertDB --> CheckDuplicate{Token Sudah<br/>Ada?}
+        CheckDuplicate -->|Ya| UpdateExisting[UPDATE fcm_tokens<br/>SET updated_at = NOW<br/>WHERE token = ?]
+        CheckDuplicate -->|Tidak| InsertNew[INSERT new token]
+        UpdateExisting --> ShowSuccess
+        InsertNew --> ShowSuccess
+        ShowSuccess --> SendTestNotif[Kirim Test Notification:<br/>Selamat datang di FlowDay]
+        SendTestNotif -.->|Push| ReceiveTest
+    end
     
-    CheckExisting -->|Tidak| ShowPrompt[Tampilkan Prompt:<br/>Aktifkan Notifikasi?]
-    ShowPrompt --> UserChoice{User Klik<br/>Aktifkan?}
-    UserChoice -->|Tidak| Dismiss[User Dismiss Prompt]
-    Dismiss --> End
-    
-    UserChoice -->|Ya| RequestPermission[Request Browser Permission:<br/>Notification.requestPermission]
-    RequestPermission --> BrowserPrompt[Browser Tampilkan<br/>Native Permission Dialog]
-    BrowserPrompt --> PermissionResult{User Response}
-    
-    PermissionResult -->|Denied| ShowDenied[Tampilkan Pesan:<br/>Notifikasi diblokir<br/>Cara enable di settings]
-    ShowDenied --> End
-    
-    PermissionResult -->|Granted| InitFirebase[Initialize Firebase<br/>Cloud Messaging]
-    InitFirebase --> GetToken[Request FCM Token:<br/>getToken dari Firebase]
-    GetToken --> TokenReceived{Token<br/>Berhasil?}
-    
-    TokenReceived -->|Tidak| ShowError[Tampilkan Error:<br/>Gagal mendapatkan token]
-    ShowError --> End
-    
-    TokenReceived -->|Ya| GetDeviceInfo[Collect Device Info:<br/>- Browser<br/>- OS<br/>- Device Type]
-    GetDeviceInfo --> SaveToken[POST /api/notifications/register<br/>Save Token ke Database]
-    SaveToken --> InsertDB[INSERT INTO fcm_tokens<br/>user_id, token, device_info]
-    InsertDB --> CheckDuplicate{Token Sudah<br/>Ada?}
-    
-    CheckDuplicate -->|Ya| UpdateExisting[UPDATE fcm_tokens<br/>SET updated_at = NOW<br/>WHERE token = ?]
-    CheckDuplicate -->|Tidak| InsertNew[INSERT new token]
-    
-    UpdateExisting --> ShowSuccess[Tampilkan Toast:<br/>Notifikasi berhasil diaktifkan]
-    InsertNew --> ShowSuccess
-    ShowSuccess --> SendTestNotif[Kirim Test Notification:<br/>Selamat datang di FlowDay]
-    SendTestNotif --> End
+    OpenApp --> CheckPermission
+    ClickAllow --> RequestPermission
+    WaitProcess --> InitFirebase
 
-    style Start fill:#e1f5e1
-    style End fill:#e1f5e1
-    style ShowSuccess fill:#e1f5e1
-    style ShowDenied fill:#ffe1e1
-    style ShowError fill:#ffe1e1
-    style ShowUnsupported fill:#fff3cd
+    style Start fill:#90EE90
+    style End fill:#90EE90
+    style ShowSuccess fill:#90EE90
+    style ShowDenied fill:#FFB6C1
+    style ShowError fill:#FFB6C1
+    style ShowUnsupported fill:#FFF8DC
 ```
 
 **Penjelasan:**
+- **Role User (Pelanggan/Customer)**: Buka app, klik aktifkan notifikasi, izinkan permission browser, terima test notification
+- **Role Sistem**: Cek browser support, cek existing token, request permission, init Firebase, get FCM token, save to database
 1. **Check Browser Support**: Validasi browser support push notifications
 2. **Check Existing Token**: Cek apakah user sudah punya FCM token aktif
 3. **Request Permission**: Tampilkan prompt untuk aktifkan notifikasi
@@ -608,40 +665,72 @@ graph TD
 
 ```mermaid
 graph TD
-    Start([Cron Job Triggered<br/>Daily at 8:00 AM WIB]) --> LogStart[Log: Cron job started]
-    LogStart --> QueryTasks[Query Database:<br/>SELECT * FROM tasks<br/>WHERE due_date = CURRENT_DATE + INTERVAL '1 day'<br/>AND status != 'done'<br/>AND deleted_at IS NULL]
-    QueryTasks --> CheckResults{Ada Tasks<br/>yang Deadline<br/>Besok?}
+    subgraph System["⚙️ Sistem - Cron Job"]
+        Start([Cron Job Triggered<br/>Daily at 8:00 AM WIB]) --> LogStart[Log: Cron job started]
+        LogStart --> QueryTasks[Query Database:<br/>SELECT * FROM tasks<br/>WHERE due_date = CURRENT_DATE + INTERVAL '1 day'<br/>AND status != 'done'<br/>AND deleted_at IS NULL]
+        QueryTasks --> CheckResults{Ada Tasks<br/>yang Deadline<br/>Besok?}
+        
+        CheckResults -->|Tidak| LogNoTasks[Log: No tasks found]
+        LogNoTasks --> EndSuccess([Cron Selesai - Success])
+        
+        CheckResults -->|Ya| GroupByUser[GROUP BY user_id<br/>untuk Batch Processing]
+        GroupByUser --> LoopUsers[Loop Setiap User]
+        
+        LoopUsers --> GetPreferences[Query Preferences:<br/>SELECT * FROM notification_preferences<br/>WHERE user_id = ?]
+        GetPreferences --> CheckEnabled{deadline_reminders<br/>= TRUE?}
+        
+        CheckEnabled -->|Tidak| LogDisabled[Log: User disabled deadline reminders]
+        LogDisabled --> NextUser[Next User]
+        
+        CheckEnabled -->|Ya| GetTokens[Query FCM Tokens:<br/>SELECT * FROM fcm_tokens<br/>WHERE user_id = ?<br/>AND last_used_at > NOW - 30 days]
+        GetTokens --> CheckTokens{Ada Token<br/>Aktif?}
+        
+        CheckTokens -->|Tidak| LogNoToken[Log: No active tokens for user]
+        LogNoToken --> NextUser
+        
+        CheckTokens -->|Ya| PrepareNotif[Prepare Notification Payload:<br/>title: Pengingat Deadline<br/>body: X tugas deadline besok<br/>data: task_ids, user_id]
+        PrepareNotif --> LoopTokens[Loop Setiap Token]
+        
+        LoopTokens --> SendFCM[Send via Firebase Admin SDK:<br/>admin.messaging.send]
+        SendFCM --> FCMResponse{FCM Response}
+        
+        FCMResponse -->|Success| LogSuccess[Log: Notification sent successfully]
+        LogSuccess --> SaveHistory[INSERT INTO notifications<br/>user_id, title, body, type='deadline']
+        SaveHistory --> UpdateToken[UPDATE fcm_tokens<br/>SET last_used_at = NOW<br/>WHERE token = ?]
+        UpdateToken --> NextToken[Next Token]
+        
+        FCMResponse -->|Error: Invalid Token| LogInvalidToken[Log: Invalid token]
+        LogInvalidToken --> DeleteToken[DELETE FROM fcm_tokens<br/>WHERE token = ?]
+        DeleteToken --> NextToken
+        
+        FCMResponse -->|Error: Other| LogError[Log: FCM error]
+        LogError --> NextToken
+        
+        NextToken --> CheckMoreTokens{Ada Token<br/>Lagi?}
+        CheckMoreTokens -->|Ya| LoopTokens
+        CheckMoreTokens -->|Tidak| NextUser
+        
+        NextUser --> CheckMoreUsers{Ada User<br/>Lagi?}
+        CheckMoreUsers -->|Ya| LoopUsers
+        CheckMoreUsers -->|Tidak| LogComplete[Log: Cron job completed<br/>X notifications sent]
+        LogComplete --> EndSuccess
+    end
     
-    CheckResults -->|Tidak| LogNoTasks[Log: No tasks found]
-    LogNoTasks --> EndSuccess([Cron Selesai - Success])
+    subgraph User["👤 Pelanggan (Customer)"]
+        ReceiveNotif[Terima Push Notification<br/>di Device]
+        ReceiveNotif --> ViewNotif[Lihat Notifikasi<br/>Deadline]
+        ViewNotif --> EndUser([End])
+    end
     
-    CheckResults -->|Ya| GroupByUser[GROUP BY user_id<br/>untuk Batch Processing]
-    GroupByUser --> LoopUsers[Loop Setiap User]
-    
-    LoopUsers --> GetPreferences[Query Preferences:<br/>SELECT * FROM notification_preferences<br/>WHERE user_id = ?]
-    GetPreferences --> CheckEnabled{deadline_reminders<br/>= TRUE?}
-    
-    CheckEnabled -->|Tidak| LogDisabled[Log: User disabled deadline reminders]
-    LogDisabled --> NextUser[Next User]
-    
-    CheckEnabled -->|Ya| GetTokens[Query FCM Tokens:<br/>SELECT * FROM fcm_tokens<br/>WHERE user_id = ?<br/>AND last_used_at > NOW - 30 days]
-    GetTokens --> CheckTokens{Ada Token<br/>Aktif?}
-    
-    CheckTokens -->|Tidak| LogNoToken[Log: No active tokens for user]
-    LogNoToken --> NextUser
-    
-    CheckTokens -->|Ya| PrepareNotif[Prepare Notification Payload:<br/>title: Pengingat Deadline<br/>body: X tugas deadline besok<br/>data: task_ids, user_id]
-    PrepareNotif --> LoopTokens[Loop Setiap Token]
-    
-    LoopTokens --> SendFCM[Send via Firebase Admin SDK:<br/>admin.messaging.send]
-    SendFCM --> FCMResponse{FCM Response}
-    
-    FCMResponse -->|Success| LogSuccess[Log: Notification sent successfully]
-    LogSuccess --> SaveHistory[INSERT INTO notifications<br/>user_id, title, body, type='deadline']
-    SaveHistory --> UpdateToken[UPDATE fcm_tokens<br/>SET last_used_at = NOW<br/>WHERE token = ?]
-    UpdateToken --> NextToken[Next Token]
-    
-    FCMResponse -->|Error: Invalid Token| LogInvalidToken[Log: Invalid token detected]
+    SendFCM -.->|Push| ReceiveNotif
+
+    style Start fill:#87CEEB
+    style EndSuccess fill:#90EE90
+    style EndUser fill:#90EE90
+    style LogSuccess fill:#90EE90
+    style LogError fill:#FFB6C1
+    style LogInvalidToken fill:#FFF8DC
+``` detected]
     LogInvalidToken --> DeleteToken[DELETE FROM fcm_tokens<br/>WHERE token = ?]
     DeleteToken --> NextToken
     
@@ -665,6 +754,8 @@ graph TD
 ```
 
 **Penjelasan Cron Job Flow:**
+- **Role Sistem (Cron Job)**: Triggered daily 8 AM, query tasks, loop users, cek preferences, send FCM, handle response
+- **Role User (Pelanggan)**: Terima push notification di device
 1. **Trigger**: Cron job berjalan setiap hari pukul 8 pagi (via Vercel Cron)
 2. **Query Tasks**: Ambil semua tasks yang deadline besok dan belum selesai
 3. **Group by User**: Batch processing per user untuk efisiensi
@@ -683,70 +774,95 @@ graph TD
 
 ```mermaid
 graph TD
-    Start([User Buka Settings]) --> ClickNotif[Klik Tab<br/>Notification Settings]
-    ClickNotif --> LoadPrefs[Load Current Preferences:<br/>SELECT * FROM notification_preferences<br/>WHERE user_id = auth.uid]
-    LoadPrefs --> CheckExists{Preferences<br/>Exists?}
+    subgraph User["👤 Pelanggan (Customer)"]
+        Start([Start]) --> OpenSettings[Buka Settings]
+        OpenSettings --> ClickNotif[Klik Tab<br/>Notification Settings]
+        DisplayForm[Tampilkan Form dengan<br/>Current Values] --> UserModify{User Modifikasi<br/>Settings}
+        
+        %% TOGGLES
+        UserModify -->|Toggle Deadline| ToggleDeadline[Toggle Switch:<br/>deadline_reminders]
+        ToggleDeadline --> UserModify
+        
+        UserModify -->|Toggle Habit| ToggleHabit[Toggle Switch:<br/>habit_reminders]
+        ToggleHabit --> UserModify
+        
+        UserModify -->|Toggle Streak| ToggleStreak[Toggle Switch:<br/>streak_milestones]
+        ToggleStreak --> UserModify
+        
+        UserModify -->|Toggle Task Complete| ToggleTask[Toggle Switch:<br/>task_complete]
+        ToggleTask --> UserModify
+        
+        UserModify -->|Change Time| SelectTime[Select Time Picker:<br/>Pilih Waktu Pengingat]
+        SelectTime --> UserModify
+        
+        %% SAVE
+        UserModify -->|Klik Simpan| ClickSave[Klik Simpan]
+        ShowValidationError[Tampilkan Error:<br/>Waktu harus valid] --> UserModify
+        ShowSuccess[Tampilkan Toast:<br/>Pengaturan berhasil disimpan] --> UpdateUI[Update UI dengan<br/>New Preferences]
+        UpdateUI --> End([End])
+        
+        %% CANCEL
+        UserModify -->|Klik Batal| ClickCancel[Klik Batal]
+        ShowConfirm[Tampilkan Dialog:<br/>Buang perubahan?] --> UserConfirm{User Konfirmasi?}
+        UserConfirm -->|Tidak| UserModify
+        UserConfirm -->|Ya| End
+    end
     
-    CheckExists -->|Tidak| CreateDefault[Create Default Preferences:<br/>INSERT INTO notification_preferences<br/>All enabled, reminder_time = 20:00]
-    CheckExists -->|Ya| DisplayForm[Tampilkan Form dengan<br/>Current Values]
-    CreateDefault --> DisplayForm
+    subgraph System["⚙️ Sistem"]
+        LoadPrefs[Load Current Preferences:<br/>SELECT * FROM notification_preferences<br/>WHERE user_id = auth.uid]
+        LoadPrefs --> CheckExists{Preferences<br/>Exists?}
+        CheckExists -->|Tidak| CreateDefault[Create Default Preferences:<br/>INSERT INTO notification_preferences<br/>All enabled, reminder_time = 20:00]
+        CheckExists -->|Ya| DisplayForm
+        CreateDefault --> DisplayForm
+        
+        %% UPDATE STATE
+        UpdateDeadline[Update State:<br/>deadline_reminders = !current]
+        UpdateDeadline --> UserModify
+        UpdateHabit[Update State:<br/>habit_reminders = !current]
+        UpdateHabit --> UserModify
+        UpdateStreak[Update State:<br/>streak_milestones = !current]
+        UpdateStreak --> UserModify
+        UpdateTask[Update State:<br/>task_complete = !current]
+        UpdateTask --> UserModify
+        UpdateTime[Update State:<br/>reminder_time = selected]
+        UpdateTime --> UserModify
+        
+        %% SAVE SYSTEM
+        ValidateForm{Form Valid?}
+        ValidateForm -->|Tidak| ShowValidationError
+        ValidateForm -->|Ya| SaveToDB[UPDATE notification_preferences<br/>SET deadline_reminders = ?<br/>habit_reminders = ?<br/>streak_milestones = ?<br/>task_complete = ?<br/>reminder_time = ?<br/>updated_at = NOW<br/>WHERE user_id = auth.uid]
+        SaveToDB --> TriggerUpdate[Database Trigger:<br/>Update updated_at timestamp]
+        TriggerUpdate --> InvalidateCache[Invalidate React Query Cache:<br/>Refetch preferences]
+        InvalidateCache --> ShowSuccess
+        
+        %% CANCEL SYSTEM
+        ConfirmCancel{Ada Perubahan<br/>Belum Disimpan?}
+        ConfirmCancel -->|Tidak| End
+        ConfirmCancel -->|Ya| ShowConfirm
+        ResetForm[Reset Form ke<br/>Original Values]
+        ResetForm --> End
+    end
     
-    DisplayForm --> UserModify{User Modifikasi<br/>Settings}
-    
-    %% TOGGLE DEADLINE REMINDERS
-    UserModify -->|Toggle Deadline| ToggleDeadline[Toggle Switch:<br/>deadline_reminders]
-    ToggleDeadline --> UpdateDeadline[Update State:<br/>deadline_reminders = !current]
-    UpdateDeadline --> UserModify
-    
-    %% TOGGLE HABIT REMINDERS
-    UserModify -->|Toggle Habit| ToggleHabit[Toggle Switch:<br/>habit_reminders]
-    ToggleHabit --> UpdateHabit[Update State:<br/>habit_reminders = !current]
-    UpdateHabit --> UserModify
-    
-    %% TOGGLE STREAK MILESTONES
-    UserModify -->|Toggle Streak| ToggleStreak[Toggle Switch:<br/>streak_milestones]
-    ToggleStreak --> UpdateStreak[Update State:<br/>streak_milestones = !current]
-    UpdateStreak --> UserModify
-    
-    %% TOGGLE TASK COMPLETE
-    UserModify -->|Toggle Task Complete| ToggleTask[Toggle Switch:<br/>task_complete]
-    ToggleTask --> UpdateTask[Update State:<br/>task_complete = !current]
-    UpdateTask --> UserModify
-    
-    %% CHANGE REMINDER TIME
-    UserModify -->|Change Time| SelectTime[Select Time Picker:<br/>Pilih Waktu Pengingat]
-    SelectTime --> UpdateTime[Update State:<br/>reminder_time = selected]
-    UpdateTime --> UserModify
-    
-    %% SAVE CHANGES
-    UserModify -->|Klik Simpan| ValidateForm{Form Valid?}
-    ValidateForm -->|Tidak| ShowValidationError[Tampilkan Error:<br/>Waktu harus valid]
-    ShowValidationError --> UserModify
-    
-    ValidateForm -->|Ya| SaveToDB[UPDATE notification_preferences<br/>SET deadline_reminders = ?<br/>habit_reminders = ?<br/>streak_milestones = ?<br/>task_complete = ?<br/>reminder_time = ?<br/>updated_at = NOW<br/>WHERE user_id = auth.uid]
-    SaveToDB --> TriggerUpdate[Database Trigger:<br/>Update updated_at timestamp]
-    TriggerUpdate --> InvalidateCache[Invalidate React Query Cache:<br/>Refetch preferences]
-    InvalidateCache --> ShowSuccess[Tampilkan Toast:<br/>Pengaturan berhasil disimpan]
-    ShowSuccess --> UpdateUI[Update UI dengan<br/>New Preferences]
-    UpdateUI --> End([Selesai])
-    
-    %% CANCEL
-    UserModify -->|Klik Batal| ConfirmCancel{Ada Perubahan<br/>Belum Disimpan?}
-    ConfirmCancel -->|Tidak| End
-    ConfirmCancel -->|Ya| ShowConfirm[Tampilkan Dialog:<br/>Buang perubahan?]
-    ShowConfirm --> UserConfirm{User Konfirmasi?}
-    UserConfirm -->|Tidak| UserModify
-    UserConfirm -->|Ya| ResetForm[Reset Form ke<br/>Original Values]
-    ResetForm --> End
+    ClickNotif --> LoadPrefs
+    ToggleDeadline --> UpdateDeadline
+    ToggleHabit --> UpdateHabit
+    ToggleStreak --> UpdateStreak
+    ToggleTask --> UpdateTask
+    SelectTime --> UpdateTime
+    ClickSave --> ValidateForm
+    ClickCancel --> ConfirmCancel
+    UserConfirm -->|Ya| ResetForm
 
-    style Start fill:#e1f5e1
-    style End fill:#e1f5e1
-    style ShowSuccess fill:#e1f5e1
-    style ShowValidationError fill:#ffe1e1
-    style ShowConfirm fill:#fff3cd
+    style Start fill:#90EE90
+    style End fill:#90EE90
+    style ShowSuccess fill:#90EE90
+    style ShowValidationError fill:#FFB6C1
+    style ShowConfirm fill:#FFF8DC
 ```
 
 **Penjelasan:**
+- **Role User (Pelanggan/Customer)**: Buka settings, klik notification tab, toggle switches, ubah waktu, simpan atau batal
+- **Role Sistem**: Load preferences, create default jika belum ada, update state, validasi form, save to database, invalidate cache
 1. **Load Preferences**: Ambil current preferences dari database
 2. **Create Default**: Jika belum ada, create dengan default values (all enabled, 8 PM)
 3. **Toggle Switches**: User bisa enable/disable per notification type:
@@ -765,107 +881,143 @@ graph TD
 
 ```mermaid
 graph TD
-    Start([User Buka Aplikasi]) --> CheckAuth{User<br/>Authenticated?}
+    subgraph User["👤 Pengunjung/Pelanggan"]
+        Start([Start]) --> OpenApp[Buka Aplikasi]
+        
+        %% NOT AUTHENTICATED
+        Landing[Tampilkan Landing Page] --> AuthChoice{Pilih Aksi}
+        AuthChoice -->|Login| InputLogin[Input Kredensial Login]
+        AuthChoice -->|Register| InputRegister[Input Data Registrasi]
+        InputLogin --> SubmitLogin[Submit Login]
+        InputRegister --> SubmitRegister[Submit Register]
+        
+        %% AUTHENTICATED - DASHBOARD
+        DisplayDash[Tampilkan Dashboard] --> MainMenu{User Pilih Menu}
+        
+        %% DASHBOARD
+        MainMenu -->|Dashboard| ViewOverview[Lihat Overview:<br/>- Stats Cards<br/>- Recent Tasks<br/>- Habit Summary]
+        ViewOverview --> MainMenu
+        
+        %% TASKS
+        MainMenu -->|Tasks| ViewTasks[Lihat Halaman Tasks]
+        ViewTasks --> TaskAction{Pilih Aksi}
+        TaskAction -->|CRUD| DoTaskCRUD[Create/Read/<br/>Update/Delete Task]
+        TaskAction -->|Search| DoTaskSearch[Search & Filter Tasks]
+        TaskAction -->|Soft Delete| DoTaskTrash[Pindah ke Trash]
+        DoTaskCRUD --> ViewTasks
+        DoTaskSearch --> ViewTasks
+        DoTaskTrash --> ViewTasks
+        TaskAction -->|Back| MainMenu
+        
+        %% HABITS
+        MainMenu -->|Habits| ViewHabits[Lihat Halaman Habits]
+        ViewHabits --> HabitAction{Pilih Aksi}
+        HabitAction -->|Create| DoCreateHabit[Tambah Habit Baru]
+        HabitAction -->|Toggle| DoToggleHabit[Toggle Habit Log]
+        HabitAction -->|View Stats| DoHabitStats[Lihat Habit Stats]
+        HabitAction -->|Delete| DoHabitTrash[Pindah ke Trash]
+        DoCreateHabit --> ViewHabits
+        DoToggleHabit --> ViewHabits
+        DoHabitStats --> ViewHabits
+        DoHabitTrash --> ViewHabits
+        HabitAction -->|Back| MainMenu
+        
+        %% ANALYTICS
+        MainMenu -->|Analytics| ViewAnalytics[Lihat Halaman Analytics]
+        ViewAnalytics --> MainMenu
+        
+        %% TRASH
+        MainMenu -->|Trash| ViewTrash[Lihat Halaman Trash]
+        ViewTrash --> TrashAction{Pilih Aksi}
+        TrashAction -->|Restore| DoRestore[Restore Item]
+        TrashAction -->|Hard Delete| DoHardDelete[Permanent Delete]
+        DoRestore --> ViewTrash
+        DoHardDelete --> ViewTrash
+        TrashAction -->|Back| MainMenu
+        
+        %% SETTINGS
+        MainMenu -->|Settings| ViewSettings[Lihat Halaman Settings]
+        ViewSettings --> SettingsAction{Pilih Aksi}
+        SettingsAction -->|Profile| DoEditProfile[Edit Profile]
+        SettingsAction -->|Subjects| DoManageSubjects[Kelola Mata Kuliah]
+        SettingsAction -->|Theme| DoToggleTheme[Toggle Dark/Light Mode]
+        SettingsAction -->|Notifications| DoNotifSettings[Atur Notifikasi]
+        DoEditProfile --> ViewSettings
+        DoManageSubjects --> ViewSettings
+        DoToggleTheme --> ViewSettings
+        DoNotifSettings --> ViewSettings
+        SettingsAction -->|Back| MainMenu
+        
+        %% LOGOUT
+        MainMenu -->|Logout| ClickLogout[Klik Logout]
+        ConfirmLogout[Konfirmasi Logout?] --> UserConfirmLogout{Konfirmasi?}
+        UserConfirmLogout -->|Tidak| MainMenu
+        UserConfirmLogout -->|Ya| RedirectLogin[Redirect ke Login]
+        RedirectLogin --> Landing
+        
+        MainMenu -->|Close App| End([End])
+    end
     
-    %% NOT AUTHENTICATED
-    CheckAuth -->|Tidak| Landing[Tampilkan Landing Page]
-    Landing --> AuthChoice{Pilih Aksi}
-    AuthChoice -->|Login| LoginFlow[Proses Login]
-    AuthChoice -->|Register| RegisterFlow[Proses Register]
+    subgraph System["⚙️ Sistem"]
+        CheckAuth{User<br/>Authenticated?}
+        CheckAuth -->|Tidak| Landing
+        
+        %% LOGIN SYSTEM
+        ValidateLogin{Login Valid?}
+        ValidateLogin -->|Tidak| Landing
+        ValidateLogin -->|Ya| CreateSession[Create Session<br/>& Set Cookie]
+        
+        %% REGISTER SYSTEM
+        ValidateRegister{Register Valid?}
+        ValidateRegister -->|Tidak| Landing
+        ValidateRegister -->|Ya| CreateUser[Create User<br/>& Profile]
+        CreateUser --> CreateSession
+        
+        %% MIDDLEWARE
+        Middleware[Middleware:<br/>Validate Session]
+        Middleware --> CheckSession{Session Valid?}
+        CheckSession -->|Tidak| Logout[Clear Session]
+        Logout --> Landing
+        CheckSession -->|Ya| LoadDashboard[Load Dashboard]
+        LoadDashboard --> FetchUserData[Fetch User Data<br/>dengan RLS Filter]
+        FetchUserData --> DisplayDash
+        
+        %% ANALYTICS SYSTEM
+        FetchAnalytics[Fetch Multiple Stats<br/>Paralel via RPC]
+        FetchAnalytics --> RenderCharts[Render Charts:<br/>- Weekly Progress<br/>- Subject Breakdown<br/>- Habit Stats<br/>- Priority Distribution]
+        RenderCharts --> ViewAnalytics
+        
+        %% TRASH SYSTEM
+        RestoreItem[Restore Item<br/>SET deleted_at = NULL]
+        RestoreItem --> ViewTrash
+        PermanentDelete[Permanent Delete<br/>dengan Konfirmasi]
+        PermanentDelete --> ViewTrash
+        
+        %% LOGOUT SYSTEM
+        ConfirmLogout
+        ClearSession[Clear Session<br/>& Cache]
+        ClearSession --> RedirectLogin
+    end
     
-    LoginFlow --> ValidateLogin{Login Valid?}
-    ValidateLogin -->|Tidak| Landing
-    ValidateLogin -->|Ya| CreateSession[Create Session<br/>& Set Cookie]
-    
-    RegisterFlow --> ValidateRegister{Register Valid?}
-    ValidateRegister -->|Tidak| Landing
-    ValidateRegister -->|Ya| CreateUser[Create User<br/>& Profile]
-    CreateUser --> LoginFlow
-    
-    %% AUTHENTICATED
-    CheckAuth -->|Ya| Middleware[Middleware:<br/>Validate Session]
+    OpenApp --> CheckAuth
+    SubmitLogin --> ValidateLogin
+    SubmitRegister --> ValidateRegister
     CreateSession --> Middleware
-    Middleware --> CheckSession{Session Valid?}
-    CheckSession -->|Tidak| Logout[Clear Session]
-    Logout --> Landing
-    
-    CheckSession -->|Ya| LoadDashboard[Load Dashboard]
-    LoadDashboard --> FetchUserData[Fetch User Data<br/>dengan RLS Filter]
-    FetchUserData --> DisplayDash[Tampilkan Dashboard]
-    
-    DisplayDash --> MainMenu{User Pilih Menu}
-    
-    %% DASHBOARD
-    MainMenu -->|Dashboard| ShowOverview[Tampilkan Overview:<br/>- Stats Cards<br/>- Recent Tasks<br/>- Habit Summary]
-    ShowOverview --> MainMenu
-    
-    %% TASKS
-    MainMenu -->|Tasks| TasksPage[Halaman Tasks]
-    TasksPage --> TaskAction{Pilih Aksi}
-    TaskAction -->|CRUD| TaskCRUD[Create/Read/<br/>Update/Delete Task]
-    TaskAction -->|Search| TaskSearch[Search & Filter Tasks]
-    TaskAction -->|Soft Delete| TaskTrash[Pindah ke Trash]
-    TaskCRUD --> TasksPage
-    TaskSearch --> TasksPage
-    TaskTrash --> TasksPage
-    TaskAction -->|Back| MainMenu
-    
-    %% HABITS
-    MainMenu -->|Habits| HabitsPage[Halaman Habits]
-    HabitsPage --> HabitAction{Pilih Aksi}
-    HabitAction -->|Create| CreateHabit[Tambah Habit Baru]
-    HabitAction -->|Toggle| ToggleHabit[Toggle Habit Log<br/>& Recalc Streak]
-    HabitAction -->|View Stats| HabitStats[Lihat Habit Stats]
-    HabitAction -->|Delete| HabitTrash[Pindah ke Trash]
-    CreateHabit --> HabitsPage
-    ToggleHabit --> HabitsPage
-    HabitStats --> HabitsPage
-    HabitTrash --> HabitsPage
-    HabitAction -->|Back| MainMenu
-    
-    %% ANALYTICS
-    MainMenu -->|Analytics| AnalyticsPage[Halaman Analytics]
-    AnalyticsPage --> FetchAnalytics[Fetch Multiple Stats<br/>Paralel via RPC]
-    FetchAnalytics --> RenderCharts[Render Charts:<br/>- Weekly Progress<br/>- Subject Breakdown<br/>- Habit Stats<br/>- Priority Distribution]
-    RenderCharts --> AnalyticsPage
-    AnalyticsPage -->|Back| MainMenu
-    
-    %% TRASH
-    MainMenu -->|Trash| TrashPage[Halaman Trash]
-    TrashPage --> TrashAction{Pilih Aksi}
-    TrashAction -->|Restore| RestoreItem[Restore Item<br/>SET deleted_at = NULL]
-    TrashAction -->|Hard Delete| PermanentDelete[Permanent Delete<br/>dengan Konfirmasi]
-    RestoreItem --> TrashPage
-    PermanentDelete --> TrashPage
-    TrashAction -->|Back| MainMenu
-    
-    %% SETTINGS
-    MainMenu -->|Settings| SettingsPage[Halaman Settings]
-    SettingsPage --> SettingsAction{Pilih Aksi}
-    SettingsAction -->|Profile| EditProfile[Edit Profile]
-    SettingsAction -->|Subjects| ManageSubjects[Kelola Mata Kuliah]
-    SettingsAction -->|Theme| ToggleTheme[Toggle Dark/Light Mode]
-    EditProfile --> SettingsPage
-    ManageSubjects --> SettingsPage
-    ToggleTheme --> SettingsPage
-    SettingsAction -->|Back| MainMenu
-    
-    %% LOGOUT
-    MainMenu -->|Logout| ConfirmLogout{Konfirmasi<br/>Logout?}
-    ConfirmLogout -->|Tidak| MainMenu
-    ConfirmLogout -->|Ya| ClearSession[Clear Session<br/>& Cache]
-    ClearSession --> RedirectLogin[Redirect ke Login]
-    RedirectLogin --> Landing
-    
-    MainMenu -->|Close App| End([Selesai])
+    ViewAnalytics --> FetchAnalytics
+    DoRestore --> RestoreItem
+    DoHardDelete --> PermanentDelete
+    ClickLogout --> ConfirmLogout
+    UserConfirmLogout -->|Ya| ClearSession
 
-    style Start fill:#e1f5e1
-    style End fill:#e1f5e1
-    style DisplayDash fill:#e1f5e1
-    style RenderCharts fill:#e1f5e1
+    style Start fill:#90EE90
+    style End fill:#90EE90
+    style DisplayDash fill:#90EE90
+    style RenderCharts fill:#90EE90
 ```
 
 **Penjelasan Complete Flow:**
+- **Role User (Pengunjung/Pelanggan)**: Buka app, login/register, navigasi menu, pilih aksi di setiap halaman, logout
+- **Role Sistem**: Cek authentication, validasi login/register, middleware session, fetch data dengan RLS, operasi database
 1. **Authentication Check**: Middleware validasi session
 2. **Landing/Auth**: Login atau register untuk user baru
 3. **Dashboard**: Overview stats dan recent activities
@@ -873,7 +1025,43 @@ graph TD
 5. **Habits Management**: Create, toggle, view stats, soft delete
 6. **Analytics**: Multiple RPC queries untuk charts dan stats
 7. **Trash**: Restore atau permanent delete items
-8. **Settings**: Edit profile, manage subjects, toggle theme
+8. **Settings**: Edit profile, manage subjects, toggle theme, notification preferences
 9. **Logout**: Clear session dan redirect ke login
 
 ---
+
+## 📝 CATATAN FORMAT DIAGRAM
+
+### Role-Based Activity Diagrams (Swimlanes)
+
+Semua activity diagram dalam dokumen ini menggunakan format **role-based** dengan **swimlanes** untuk memisahkan tanggung jawab antara:
+
+1. **👤 Pengunjung (Guest)** - User yang belum login
+2. **👤 Pelanggan (Customer)** - User yang sudah login
+3. **⚙️ Sistem** - Backend system, database, API, cron jobs
+
+### Keuntungan Format Role-Based:
+
+- ✅ **Pemisahan Tanggung Jawab yang Jelas**: Mudah melihat siapa yang melakukan apa
+- ✅ **Identifikasi Interaksi**: Jelas terlihat komunikasi antara user dan sistem
+- ✅ **Debugging Lebih Mudah**: Cepat menemukan di mana masalah terjadi (client-side vs server-side)
+- ✅ **Dokumentasi Lebih Baik**: Memudahkan developer baru memahami flow aplikasi
+- ✅ **Sesuai Standar UML**: Mengikuti best practice activity diagram dengan swimlanes
+
+### Konvensi Warna:
+
+- 🟢 **Hijau (#90EE90)**: Start, End, Success states
+- 🔴 **Merah Muda (#FFB6C1)**: Error states, Failed operations
+- 🟡 **Kuning Muda (#FFF8DC)**: Warning, Confirmation dialogs
+- 🔵 **Biru Muda (#87CEEB, #B0E0E6)**: System processes, Cron jobs
+
+### Simbol Koneksi:
+
+- **→ (Solid Arrow)**: Alur normal/synchronous
+- **-.-> (Dashed Arrow)**: Alur asynchronous (contoh: push notification)
+
+---
+
+**Last Updated**: 2026-05-06  
+**Version**: 2.0 (Role-Based Format)  
+**Author**: FlowDay Development Team
