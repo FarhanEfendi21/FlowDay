@@ -46,6 +46,7 @@ export default function SettingsPage() {
   const { resetOnboarding } = useOnboarding()
   const { permission, isSupported, requestPermission } = useFCM()
   const [newSubject, setNewSubject] = useState("")
+  const [hasPracticum, setHasPracticum] = useState(false)
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
@@ -58,12 +59,16 @@ export default function SettingsPage() {
   const handleAddSubject = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newSubject.trim()) return
-    addSubjectMutation.mutate(newSubject.trim(), {
-      onSuccess: () => {
-        setNewSubject("")
-        setIsAddSubjectOpen(false)
-      },
-    })
+    addSubjectMutation.mutate(
+      { name: newSubject.trim(), hasPracticum },
+      {
+        onSuccess: () => {
+          setNewSubject("")
+          setHasPracticum(false)
+          setIsAddSubjectOpen(false)
+        },
+      }
+    )
   }
 
   const handleSaveProfile = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -272,6 +277,19 @@ export default function SettingsPage() {
                       required
                     />
                   </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="practicum">Memiliki Praktikum</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Centang jika mata kuliah ini memiliki praktikum
+                      </p>
+                    </div>
+                    <Switch
+                      id="practicum"
+                      checked={hasPracticum}
+                      onCheckedChange={setHasPracticum}
+                    />
+                  </div>
                   <Button type="submit" className="w-full">
                     Tambah Mata Kuliah
                   </Button>
@@ -296,7 +314,14 @@ export default function SettingsPage() {
                   variant="secondary"
                   className="gap-1 py-1.5 pl-3 pr-1.5"
                 >
-                  {subject.name}
+                  <span className="flex items-center gap-1.5">
+                    {subject.name}
+                    {subject.hasPracticum && (
+                      <span className="inline-flex items-center justify-center rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                        P
+                      </span>
+                    )}
+                  </span>
                   <button
                     onClick={() => removeSubjectMutation.mutate(subject.id)}
                     disabled={removeSubjectMutation.isPending}

@@ -19,7 +19,7 @@ import {
   extractTime,
   combineDateTimeISO,
 } from "@/features/tasks"
-import { useGetSubjectNames } from "@/features/subjects"
+import { useGetSubjects, type Subject } from "@/features/subjects"
 import { useAuth } from "@/features/auth"
 import { triggerTaskCompleteConfetti } from "@/lib/confetti"
 import { createNotification } from "@/features/notifications/api/notificationService"
@@ -92,7 +92,34 @@ export default function TasksPage() {
   const { user } = useAuth()
 
   // ── Subjects dari Supabase (user-specific) ─────────────────
-  const { data: subjects = [] } = useGetSubjectNames()
+  const { data: subjects = [] } = useGetSubjects()
+
+  // ── Expand subjects: jika punya praktikum, buat 2 entries ──
+  const expandedSubjects = useMemo(() => {
+    const result: Array<{ id: string; name: string; displayName: string; isPracticum: boolean }> = []
+    
+    subjects.forEach((subject) => {
+      // Tambah entry untuk teori (selalu ada)
+      result.push({
+        id: subject.id,
+        name: subject.name,
+        displayName: subject.name,
+        isPracticum: false,
+      })
+      
+      // Jika punya praktikum, tambah entry terpisah
+      if (subject.hasPracticum) {
+        result.push({
+          id: `${subject.id}-practicum`,
+          name: `${subject.name} (Praktikum)`,
+          displayName: `${subject.name} (Praktikum)`,
+          isPracticum: true,
+        })
+      }
+    })
+    
+    return result
+  }, [subjects])
 
   // ── Client-side filter + sort ─────────────────────────────
   const filteredTasks = useMemo(() => {
@@ -120,12 +147,13 @@ export default function TasksPage() {
   const todoTasks = filteredTasks.filter((t) => t.status === "todo")
   const doneTasks = filteredTasks.filter((t) => t.status === "done")
 
-  // ── Filter subjects: dari DB + yang ada di tasks (fallback)
+  // ── Filter subjects: untuk dropdown filter (include expanded) ──
   const filterSubjects = useMemo(() => {
+    const expandedNames = expandedSubjects.map(s => s.name)
     const fromTasks = [...new Set(tasks.map((t) => t.subject).filter(Boolean))]
-    const merged    = [...new Set([...subjects, ...fromTasks])]
+    const merged = [...new Set([...expandedNames, ...fromTasks])]
     return merged.sort()
-  }, [subjects, tasks])
+  }, [expandedSubjects, tasks])
 
   // ── Handlers ──────────────────────────────────────────────
   const handleCreate = (data: CreateTaskInput) => {
@@ -169,16 +197,15 @@ export default function TasksPage() {
           triggerTaskCompleteConfetti()
           
           if (user?.id) {
-            createNotification({
-              userId: user.id,
-              title: "Tugas Selesai! 🎉",
-              body: `Kamu berhasil menyelesaikan "${task.title}".`,
-              type: "task_complete",
-              data: {
+            createNotification(
+              "Tugas Selesai! 🎉",
+              `Kamu berhasil menyelesaikan "${task.title}".`,
+              "task_complete",
+              {
                 url: "/dashboard/tasks",
                 tag: `task-complete-${task.id}`
               }
-            }).catch(console.error)
+            ).catch(console.error)
           }
         }
       },
@@ -244,7 +271,7 @@ export default function TasksPage() {
                   <DialogTitle>Tambah Tugas Baru</DialogTitle>
             </DialogHeader>
             <TaskForm
-              subjects={filterSubjects}
+              subjects={expandedSubjects}
               isLoading={createTask.isPending}
               onAdd={handleCreate}
             />
@@ -270,9 +297,16 @@ export default function TasksPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Semua Mata Kuliah</SelectItem>
-            {filterSubjects.map((subject) => (
-              <SelectItem key={subject} value={subject}>
-                {subject}
+            {expandedSubjects.map((subject) => (
+              <SelectItem key={subject.id} value={subject.name}>
+                <div className="flex items-center gap-2">
+                  <span>{subject.displayName}</span>
+                  {subject.isPracticum && (
+                    <span className="inline-flex items-center justify-center rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      P
+                    </span>
+                  )}
+                </div>
               </SelectItem>
             ))}
           </SelectContent>
@@ -436,7 +470,7 @@ export default function TasksPage() {
           {editingTask && (
             <TaskForm
               key={editingTask.id}
-              subjects={filterSubjects}
+              subjects={expandedSubjects}
               initialData={editingTask}
               isLoading={updateTask.isPending}
               onEdit={handleUpdate}
@@ -557,12 +591,14 @@ function TaskForm({
   onAdd,
   onEdit,
 }: {
-  subjects: string[]
+  subjects: Array<{ id: string; name: string; displayName: string; isPracticum: boolean }>
   initialData?: Task
   isLoading?: boolean
   onAdd?: (data: CreateTaskInput) => void
   onEdit?: (data: UpdateTaskInput) => void
 }) {
+  const subjectNames = subjects.map(s => s.name)
+  
   const [title,       setTitle]       = useState(initialData?.title       || "")
   const [description, setDescription] = useState(initialData?.description || "")
   const [priority,    setPriority]    = useState<TaskPriority>(initialData?.priority || "medium")
@@ -578,9 +614,9 @@ function TaskForm({
       : "23:59"
   )
   const [subject, setSubject] = useState<string>(
-    initialData?.subject && subjects.includes(initialData.subject)
+    initialData?.subject && subjectNames.includes(initialData.subject)
       ? initialData.subject
-      : subjects[0] ?? ""
+      : subjectNames[0] ?? ""
   )
 
   // Stable callback reference to prevent TimePicker's useEffect from
@@ -658,7 +694,16 @@ function TaskForm({
             <SelectContent>
               {subjects.length > 0 ? (
                 subjects.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                  <SelectItem key={s.id} value={s.name}>
+                    <div className="flex items-center gap-2">
+                      <span>{s.displayName}</span>
+                      {s.isPracticum && (
+                        <span className="inline-flex items-center justify-center rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                          P
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
                 ))
               ) : (
                 <SelectItem value="placeholder" disabled>Tidak ada mata kuliah</SelectItem>

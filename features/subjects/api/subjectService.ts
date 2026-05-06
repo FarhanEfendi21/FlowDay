@@ -41,11 +41,25 @@ export async function getSubjects(): Promise<Subject[]> {
   const supabase = getClient()
   const userId   = await getCurrentUserId()
 
-  const { data, error } = await supabase
+  // Try with has_practicum column first
+  let { data, error } = await supabase
     .from('user_subjects')
-    .select('id, user_id, name, created_at')
+    .select('id, user_id, name, has_practicum, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: true })
+
+  // If column doesn't exist yet, fallback to query without it
+  if (error && error.message.includes('has_practicum')) {
+    console.warn('[getSubjects] Column has_practicum not found, using fallback')
+    const fallback = await supabase
+      .from('user_subjects')
+      .select('id, user_id, name, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: true })
+    
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) throw new ServiceError(`[getSubjects] ${error.message}`, error)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,7 +71,7 @@ export async function getSubjects(): Promise<Subject[]> {
  * Tambah mata kuliah baru untuk user yang sedang login.
  * Constraint UNIQUE (user_id, name) di DB mencegah duplikasi.
  */
-export async function addSubject(name: string): Promise<Subject> {
+export async function addSubject(name: string, hasPracticum: boolean = false): Promise<Subject> {
   const trimmed = name.trim()
   if (!trimmed || trimmed.length > 100)
     throw new ServiceError('[addSubject] Nama mata kuliah tidak valid')
@@ -65,11 +79,25 @@ export async function addSubject(name: string): Promise<Subject> {
   const supabase = getClient()
   const userId   = await getCurrentUserId()
 
-  const { data, error } = await supabase
+  // Try with has_practicum column first
+  let { data, error } = await supabase
     .from('user_subjects')
-    .insert({ user_id: userId, name: trimmed })
-    .select('id, user_id, name, created_at')
+    .insert({ user_id: userId, name: trimmed, has_practicum: hasPracticum })
+    .select('id, user_id, name, has_practicum, created_at')
     .single()
+
+  // If column doesn't exist yet, fallback to insert without it
+  if (error && (error.message.includes('has_practicum') || error.code === '42703')) {
+    console.warn('[addSubject] Column has_practicum not found, using fallback')
+    const fallback = await supabase
+      .from('user_subjects')
+      .insert({ user_id: userId, name: trimmed })
+      .select('id, user_id, name, created_at')
+      .single()
+    
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     // Kode 23505 = unique_violation (nama sudah ada)

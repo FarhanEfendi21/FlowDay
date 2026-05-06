@@ -3,23 +3,26 @@
 // ============================================================
 
 export interface Subject {
-  id:        string
-  userId:    string
-  name:      string
-  createdAt: string
+  id:           string
+  userId:       string
+  name:         string
+  hasPracticum: boolean
+  createdAt:    string
 }
 
 export interface CreateSubjectInput {
-  name: string
+  name:         string
+  hasPracticum: boolean
 }
 
 // ─── Mapper ──────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function mapSubjectRow(row: any): Subject {
   return {
-    id:        row.id,
-    userId:    row.user_id,
-    name:      row.name,
-    createdAt: row.created_at,
+    id:           row.id,
+    userId:       row.user_id,
+    name:         row.name,
+    hasPracticum: row.has_practicum ?? false,
+    createdAt:    row.created_at,
   }
 }

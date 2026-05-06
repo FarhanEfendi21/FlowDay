@@ -54,8 +54,8 @@ export function useGetSubjectNames() {
 export function useAddSubject() {
   const queryClient = useQueryClient()
 
-  return useMutation<Subject, Error, string>({
-    mutationFn: addSubject,
+  return useMutation<Subject, Error, { name: string; hasPracticum: boolean }>({
+    mutationFn: ({ name, hasPracticum }) => addSubject(name, hasPracticum),
     onSuccess: (newSubject) => {
       // Update cache list langsung tanpa refetch
       queryClient.setQueryData<Subject[]>(
