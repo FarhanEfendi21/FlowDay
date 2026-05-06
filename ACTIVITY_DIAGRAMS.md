@@ -12,10 +12,10 @@
 5. [Activity Diagram: Soft Delete & Hard Delete](#5-activity-diagram-soft-delete--hard-delete)
 6. [Activity Diagram: Search & Filter Tasks](#6-activity-diagram-search--filter-tasks)
 7. [Activity Diagram: View Analytics](#7-activity-diagram-view-analytics)
-8. [Activity Diagram: Notification System](#8-activity-diagram-notification-system) ⭐ **NEW**
-9. [Activity Diagram: Enable Push Notifications](#9-activity-diagram-enable-push-notifications) ⭐ **NEW**
-10. [Activity Diagram: Send Deadline Notification (Cron)](#10-activity-diagram-send-deadline-notification-cron) ⭐ **NEW**
-11. [Activity Diagram: Configure Notification Preferences](#11-activity-diagram-configure-notification-preferences) ⭐ **NEW**
+8. [Activity Diagram: Notification System](#8-activity-diagram-notification-system) 
+9. [Activity Diagram: Enable Push Notifications](#9-activity-diagram-enable-push-notifications) 
+10. [Activity Diagram: Send Deadline Notification (Cron)](#10-activity-diagram-send-deadline-notification-cron) 
+11. [Activity Diagram: Configure Notification Preferences](#11-activity-diagram-configure-notification-preferences) 
 12. [Activity Diagram: Complete System Flow](#12-activity-diagram-complete-system-flow)
 
 ---
