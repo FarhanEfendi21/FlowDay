@@ -10,3 +10,5 @@ Thanks to all the people who have contributed to FlowDay! 🎉
 | Rayvan | [@rayvanbayu77](https://github.com/rayvanbayu77) |
 |  Sam   | [@KuroiiDev](https://github.com/kuroiidev) |
 |  Mayo   | [@mayN.](https://github.com/Mayopd) |
+| Bernard | [@Bernard026](https://github.com/bernard01001001) |
+
