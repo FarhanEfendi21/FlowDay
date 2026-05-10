@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useGetSubjects, useAddSubject, useRemoveSubject } from "@/features/subjects"
+import { useState, useEffect } from "react"
+import { useGetSubjects, useRemoveSubject } from "@/features/subjects"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,19 +12,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import {
   User,
   Moon,
   Sun,
   Palette,
   BookOpen,
-  Plus,
   X,
   LogOut,
   RotateCcw,
@@ -38,38 +30,26 @@ import { cn } from "@/lib/utils"
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+  
   // ── Subjects dari Supabase (user-specific, isolated) ──────
   const { data: subjects = [], isLoading: loadingSubjects } = useGetSubjects()
-  const addSubjectMutation    = useAddSubject()
   const removeSubjectMutation = useRemoveSubject()
   const { user } = useAuth()
   const { resetOnboarding } = useOnboarding()
   const { permission, isSupported, requestPermission } = useFCM()
-  const [newSubject, setNewSubject] = useState("")
-  const [hasPracticum, setHasPracticum] = useState(false)
-  const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Derive display values from real user data
   const userName = user?.user_metadata?.name || user?.email?.split("@")[0] || ""
   const userEmail = user?.email || ""
   const userInitial = userName.charAt(0).toUpperCase()
-
-  const handleAddSubject = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newSubject.trim()) return
-    addSubjectMutation.mutate(
-      { name: newSubject.trim(), hasPracticum },
-      {
-        onSuccess: () => {
-          setNewSubject("")
-          setHasPracticum(false)
-          setIsAddSubjectOpen(false)
-        },
-      }
-    )
-  }
 
   const handleSaveProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -180,10 +160,14 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                {theme === "dark" ? (
-                  <Moon className="h-5 w-5" />
+                {mounted ? (
+                  theme === "dark" ? (
+                    <Moon className="h-5 w-5" />
+                  ) : (
+                    <Sun className="h-5 w-5" />
+                  )
                 ) : (
-                  <Sun className="h-5 w-5" />
+                  <div className="h-5 w-5" />
                 )}
               </div>
               <div>
@@ -193,10 +177,12 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
-            <Switch
-              checked={theme === "dark"}
-              onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
-            />
+            {mounted && (
+              <Switch
+                checked={theme === "dark"}
+                onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+              />
+            )}
           </div>
         </CardContent>
       </Card>
@@ -250,54 +236,16 @@ export default function SettingsPage() {
       {/* Subjects Section */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-base font-medium">Mata Kuliah</CardTitle>
-            </div>
-            <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Tambah
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Tambah Mata Kuliah</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleAddSubject} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="subject">Nama Mata Kuliah</Label>
-                    <Input
-                      id="subject"
-                      value={newSubject}
-                      onChange={(e) => setNewSubject(e.target.value)}
-                      placeholder="Contoh: Pemrograman Web"
-                      required
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="practicum">Memiliki Praktikum</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Centang jika mata kuliah ini memiliki praktikum
-                      </p>
-                    </div>
-                    <Switch
-                      id="practicum"
-                      checked={hasPracticum}
-                      onCheckedChange={setHasPracticum}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full">
-                    Tambah Mata Kuliah
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="text-base font-medium">Mata Kuliah</CardTitle>
           </div>
-          <CardDescription>Daftar mata kuliah yang kamu ambil semester ini</CardDescription>
+          <CardDescription>
+            Daftar mata kuliah yang kamu ambil semester ini. 
+            <span className="block mt-1 text-xs">
+              💡 Tambah mata kuliah baru dari halaman <strong>Tasks</strong> saat membuat tugas.
+            </span>
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loadingSubjects ? (
@@ -333,9 +281,15 @@ export default function SettingsPage() {
                 </Badge>
               ))}
               {subjects.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  Belum ada mata kuliah. Tambah mata kuliah pertamamu!
-                </p>
+                <div className="rounded-lg border border-dashed border-muted-foreground/25 p-4 text-center">
+                  <BookOpen className="mx-auto h-8 w-8 text-muted-foreground/50 mb-2" />
+                  <p className="text-sm font-medium text-muted-foreground mb-1">
+                    Belum ada mata kuliah
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Buat tugas pertamamu di halaman Tasks untuk menambah mata kuliah
+                  </p>
+                </div>
               )}
             </div>
           )}

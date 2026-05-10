@@ -19,7 +19,7 @@ import {
   extractTime,
   combineDateTimeISO,
 } from "@/features/tasks"
-import { useGetSubjects, type Subject } from "@/features/subjects"
+import { useGetSubjects, useAddSubject, type Subject } from "@/features/subjects"
 import { useAuth } from "@/features/auth"
 import { triggerTaskCompleteConfetti } from "@/lib/confetti"
 import { createNotification } from "@/features/notifications/api/notificationService"
@@ -50,6 +50,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 import { TimePicker } from "@/components/ui/time-picker"
 import { CountdownBadge } from "@/components/tasks/countdown-badge"
@@ -64,6 +66,7 @@ import {
   RotateCcw,
   Archive,
   Clock,
+  BookOpen,
 } from "lucide-react"
 import { format, isPast } from "date-fns"
 import { id } from "date-fns/locale"
@@ -618,12 +621,49 @@ function TaskForm({
       ? initialData.subject
       : subjectNames[0] ?? ""
   )
+  
+  // State untuk dialog tambah mata kuliah
+  const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false)
+  const [newSubjectName, setNewSubjectName] = useState("")
+  const [newSubjectHasPracticum, setNewSubjectHasPracticum] = useState(false)
 
+  // Import hooks untuk tambah mata kuliah
+  const addSubjectMutation = useAddSubject()
+  
   // Stable callback reference to prevent TimePicker's useEffect from
   // re-running on every render (it depends on onChange in its dep array)
   const handleDueTimeChange = useCallback((time: string) => {
     setDueTime(time)
   }, [])
+  
+  // Handler untuk tambah mata kuliah baru
+  const handleAddSubject = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newSubjectName.trim()) return
+    
+    addSubjectMutation.mutate(
+      { name: newSubjectName.trim(), hasPracticum: newSubjectHasPracticum },
+      {
+        onSuccess: () => {
+          // Set subject yang baru ditambahkan sebagai selected
+          const newSubjectDisplayName = newSubjectHasPracticum 
+            ? `${newSubjectName.trim()} (Praktikum)` 
+            : newSubjectName.trim()
+          setSubject(newSubjectDisplayName)
+          
+          // Reset form dan tutup dialog
+          setNewSubjectName("")
+          setNewSubjectHasPracticum(false)
+          setIsAddSubjectOpen(false)
+          
+          toast.success("Mata kuliah berhasil ditambahkan!")
+        },
+        onError: (err: Error) => {
+          toast.error(err.message || "Gagal menambahkan mata kuliah")
+        },
+      }
+    )
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -680,37 +720,59 @@ function TaskForm({
           disabled={isLoading}
         />
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="task-subject">Mata Kuliah</Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="task-subject" className="text-sm font-medium">
+              Mata Kuliah
+            </Label>
+            <Button 
+              type="button" 
+              variant="link" 
+              size="sm" 
+              className="h-auto p-0 text-xs font-normal text-primary hover:text-primary/80"
+              onClick={() => setIsAddSubjectOpen(true)}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Tambah Mata Kuliah Baru
+            </Button>
+          </div>
           <Select 
             value={subject} 
             onValueChange={setSubject} 
             disabled={isLoading || subjects.length === 0}
           >
-            <SelectTrigger id="task-subject">
-              <SelectValue placeholder={subjects.length === 0 ? "Tidak ada mata kuliah" : "Pilih mata kuliah"} />
+            <SelectTrigger id="task-subject" className="h-10">
+              <SelectValue placeholder={subjects.length === 0 ? "Belum ada mata kuliah - Tambah dulu" : "Pilih mata kuliah"} />
             </SelectTrigger>
             <SelectContent>
               {subjects.length > 0 ? (
                 subjects.map((s) => (
                   <SelectItem key={s.id} value={s.name}>
                     <div className="flex items-center gap-2">
+                      <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
                       <span>{s.displayName}</span>
                       {s.isPracticum && (
-                        <span className="inline-flex items-center justify-center rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                          P
-                        </span>
+                        <Badge variant="secondary" className="h-4 px-1 text-[9px] font-medium">
+                          Praktikum
+                        </Badge>
                       )}
                     </div>
                   </SelectItem>
                 ))
               ) : (
-                <SelectItem value="placeholder" disabled>Tidak ada mata kuliah</SelectItem>
+                <SelectItem value="placeholder" disabled>
+                  <span className="text-muted-foreground">Belum ada mata kuliah</span>
+                </SelectItem>
               )}
             </SelectContent>
           </Select>
-
+          {subjects.length === 0 && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <span>💡</span>
+              <span>Klik "Tambah Mata Kuliah Baru" untuk memulai</span>
+            </p>
+          )}
         </div>
         <div className="space-y-2">
           <Label htmlFor="task-priority">Prioritas</Label>
@@ -726,6 +788,106 @@ function TaskForm({
           </Select>
         </div>
       </div>
+
+      {/* Dialog Tambah Mata Kuliah - Redesigned */}
+      <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <BookOpen className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg">Tambah Mata Kuliah</DialogTitle>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Tambahkan mata kuliah yang kamu ambil semester ini
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <form onSubmit={handleAddSubject} className="space-y-5 pt-2">
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="new-subject" className="text-sm font-medium">
+                  Nama Mata Kuliah <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="new-subject"
+                  value={newSubjectName}
+                  onChange={(e) => setNewSubjectName(e.target.value)}
+                  placeholder="Contoh: Pemrograman Web, Basis Data, dll"
+                  required
+                  disabled={addSubjectMutation.isPending}
+                  className="h-10"
+                  autoFocus
+                />
+              </div>
+              
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="new-practicum" className="text-sm font-medium cursor-pointer">
+                        Memiliki Praktikum
+                      </Label>
+                      {newSubjectHasPracticum && (
+                        <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-medium">
+                          Praktikum
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Aktifkan jika mata kuliah ini memiliki sesi praktikum terpisah
+                    </p>
+                  </div>
+                  <Switch
+                    id="new-practicum"
+                    checked={newSubjectHasPracticum}
+                    onCheckedChange={setNewSubjectHasPracticum}
+                    disabled={addSubjectMutation.isPending}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="flex gap-3">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="flex-1 h-10"
+                onClick={() => {
+                  setIsAddSubjectOpen(false)
+                  setNewSubjectName("")
+                  setNewSubjectHasPracticum(false)
+                }}
+                disabled={addSubjectMutation.isPending}
+              >
+                Batal
+              </Button>
+              <Button 
+                type="submit" 
+                className="flex-1 h-10 gap-2"
+                disabled={addSubjectMutation.isPending || !newSubjectName.trim()}
+              >
+                {addSubjectMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Menambahkan...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    Tambah Mata Kuliah
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="task-dueDate">Tanggal Deadline</Label>
