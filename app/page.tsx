@@ -15,6 +15,10 @@ const LogoLoop = dynamic(() => import("@/components/ui/logo-loop"), {
   ssr: false,
   loading: () => null,
 })
+const Galaxy = dynamic(() => import("@/components/ui/galaxy"), {
+  ssr: false,
+  loading: () => null,
+})
 import { 
   CheckCircle2, 
   Calendar, 
@@ -90,8 +94,26 @@ export default function LandingPage() {
   
   return (
     <div className="relative min-h-screen bg-background overflow-hidden">
-      {/* Background - Fallback static gradient instead of heavy 3D */}
-      <div className="fixed inset-0 z-0 pointer-events-none bg-gradient-to-br from-background via-background to-primary/5 opacity-50" />
+      {/* Background - Galaxy for Dark Mode, Subtle Gradient for Light */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        {mounted && theme === 'dark' ? (
+          <motion.div 
+            style={{ opacity: galaxyOpacity }}
+            className="w-full h-full"
+          >
+            <Galaxy 
+              density={1.5}
+              speed={0.5}
+              twinkleIntensity={0.5}
+              glowIntensity={0.4}
+              rotationSpeed={0.05}
+              hueShift={140}
+            />
+          </motion.div>
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-background via-background to-primary/5 opacity-50" />
+        )}
+      </div>
 
       {/* Content */}
       <div className="relative z-10">

@@ -31,10 +31,9 @@ export function NotificationBell() {
           <Bell className={cn("h-5 w-5", unreadCount > 0 && "fill-primary/20")} />
           {unreadCount > 0 && (
             <>
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-destructive animate-ping opacity-75"></span>
+              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-gradient-to-br from-orange-500 to-red-500 animate-ping opacity-75"></span>
               <Badge
-                variant="destructive"
-                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] shadow-sm border-background border-2"
+                className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-[10px] shadow-sm border-background border-2 bg-gradient-to-br from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600"
               >
                 {unreadCount > 99 ? "99+" : unreadCount}
               </Badge>

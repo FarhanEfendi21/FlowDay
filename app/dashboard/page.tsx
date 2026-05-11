@@ -25,6 +25,15 @@ import { useDashboardSummary, useWeeklyTaskStats, useSubjectTaskStats } from "@/
 import { useUpcomingTasks } from "@/features/tasks"
 import { useGetHabits } from "@/features/habits"
 
+// ── Recharts ──────────────────────────────────────────────────
+import {
+  Bar,
+  BarChart,
+  ResponsiveContainer,
+  XAxis,
+  Tooltip,
+} from "recharts"
+
 // ── Onboarding ────────────────────────────────────────────────
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
 import { useOnboarding } from "@/hooks/use-onboarding"
@@ -57,7 +66,7 @@ export default function DashboardPage() {
 
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">
           Selamat datang kembali! Ini ringkasan progress kamu.
         </p>
@@ -155,7 +164,7 @@ export default function DashboardPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-transparent" />
           
           <CardHeader className="relative flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <CardTitle className="flex items-center gap-2 text-xl font-semibold">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500/10">
                 <Flame className="h-4 w-4 text-orange-500" />
               </div>
@@ -167,7 +176,7 @@ export default function DashboardPage() {
               </Button>
             </Link>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20">
             {loadingHabits ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-3">
@@ -179,7 +188,7 @@ export default function DashboardPage() {
                 </div>
               ))
             ) : habits.length > 0 ? (
-              habits.slice(0, 4).map((habit) => (
+              habits.map((habit) => (
                 <div 
                   key={habit.id} 
                   className={cn(
@@ -232,7 +241,7 @@ export default function DashboardPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-transparent" />
           
           <CardHeader className="relative flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <CardTitle className="flex items-center gap-2 text-xl font-semibold">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/10">
                 <Calendar className="h-4 w-4 text-blue-500" />
               </div>
@@ -294,7 +303,7 @@ export default function DashboardPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent" />
           
           <CardHeader className="relative">
-            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <CardTitle className="flex items-center gap-2 text-xl font-semibold">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-500/10">
                 <BookOpen className="h-4 w-4 text-purple-500" />
               </div>
@@ -422,43 +431,43 @@ function StatCard({
 import type { DailyTaskStat } from "@/features/stats"
 
 function WeeklyChart({ data }: { data: DailyTaskStat[] }) {
-  const maxCompleted = Math.max(...data.map((d) => d.completed), 1)
+  if (!data || data.length === 0) return null
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-end justify-between gap-1 h-32">
-        {data.map((day) => {
-          const heightPct = Math.round((day.completed / maxCompleted) * 100)
-          const isToday   = day.date === new Date().toISOString().split("T")[0]
-          return (
-            <div key={day.date} className="flex flex-1 flex-col items-center gap-1">
-              <span className="text-xs font-medium text-foreground">
-                {day.completed > 0 ? day.completed : ""}
-              </span>
-              <div className="w-full flex items-end" style={{ height: "96px" }}>
-                <div
-                  className={`w-full rounded-t-sm transition-all ${
-                    isToday ? "bg-primary" : "bg-primary/30"
-                  }`}
-                  style={{ height: `${Math.max(heightPct, 4)}%` }}
-                />
-              </div>
-            </div>
-          )
-        })}
-      </div>
-      <div className="flex justify-between">
-        {data.map((day) => {
-          const isToday = day.date === new Date().toISOString().split("T")[0]
-          return (
-            <div key={day.date} className="flex-1 text-center">
-              <span className={`text-xs ${isToday ? "font-semibold text-primary" : "text-muted-foreground"}`}>
-                {day.dayLabel}
-              </span>
-            </div>
-          )
-        })}
-      </div>
+    <div className="h-40 w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data}>
+          <XAxis
+            dataKey="dayLabel"
+            stroke="var(--muted-foreground)"
+            fontSize={12}
+            tickLine={false}
+            axisLine={false}
+          />
+          <Tooltip
+            content={({ active, payload }) => {
+              if (active && payload && payload.length) {
+                const dayData = payload[0].payload
+                return (
+                  <div className="rounded-lg border bg-background p-2 shadow-sm">
+                    <p className="text-sm font-medium">{dayData.date}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Selesai: {dayData.completed} tugas
+                    </p>
+                  </div>
+                )
+              }
+              return null
+            }}
+          />
+          <Bar
+            dataKey="completed"
+            fill="var(--chart-1)"
+            radius={[4, 4, 0, 0]}
+            maxBarSize={40}
+          />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   )
 }

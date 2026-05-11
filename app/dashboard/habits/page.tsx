@@ -13,9 +13,20 @@ import {
 import { useAuth } from "@/features/auth"
 import { triggerSimpleConfetti, triggerStreakMilestoneConfetti } from "@/lib/confetti"
 import { createNotification } from "@/features/notifications/api/notificationService"
+import { useRateLimit } from "@/hooks/use-rate-limit"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Dialog,
   DialogContent,
@@ -41,6 +52,7 @@ import {
   Loader2,
   RotateCcw,
   Archive,
+  AlertTriangle,
 } from "lucide-react"
 import { format, subDays } from "date-fns"
 import { id } from "date-fns/locale"
@@ -52,8 +64,16 @@ export default function HabitsPage() {
   const [newHabitTitle, setNewHabitTitle]     = useState("")
   const [searchQuery, setSearchQuery]         = useState("")
   const [showTrash, setShowTrash]             = useState(false)
+  // AlertDialog state for permanent delete
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<string | null>(null)
+  // AlertDialog state for soft delete confirmation
+  const [softDeleteTarget, setSoftDeleteTarget] = useState<{ id: string; title: string } | null>(null)
 
   const { user } = useAuth()
+
+  // ── Rate limiting ──────────────────────────────────────────
+  const { guard: guardCreate } = useRateLimit("habit-create", { cooldownMs: 2000 })
+  const { guard: guardDelete } = useRateLimit("habit-delete", { cooldownMs: 1000 })
 
   // ── React Query hooks ─────────────────────────────────────
   const { data: habits = [], isLoading } = useGetHabits()
@@ -105,25 +125,39 @@ export default function HabitsPage() {
   const handleAddHabit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newHabitTitle.trim()) return
-    createHabit.mutate(
-      { title: newHabitTitle.trim() },
-      {
-        onSuccess: () => {
-          setNewHabitTitle("")
-          setIsAddDialogOpen(false)
-          toast.success("Habit berhasil ditambahkan!")
-        },
-        onError: (err) => toast.error(err.message),
-      }
-    )
+    guardCreate(() => {
+      createHabit.mutate(
+        { title: newHabitTitle.trim() },
+        {
+          onSuccess: () => {
+            setNewHabitTitle("")
+            setIsAddDialogOpen(false)
+            toast.success("Habit berhasil ditambahkan!")
+          },
+          onError: (err) => toast.error(err.message),
+        }
+      )
+    })
   }
 
+  // Soft delete: opens AlertDialog instead of window.confirm
   const handleDelete = (id: string, title: string) => {
-    if (!confirm(`Yakin ingin menghapus habit "${title}"? Habit akan dipindahkan ke trash.`)) return
-    
-    deleteHabit.mutate(id, {
-      onSuccess: () => toast.success("Habit dipindahkan ke trash"),
-      onError: (err) => toast.error(err.message),
+    setSoftDeleteTarget({ id, title })
+  }
+
+  const confirmSoftDelete = () => {
+    if (!softDeleteTarget) return
+    guardDelete(() => {
+      deleteHabit.mutate(softDeleteTarget.id, {
+        onSuccess: () => {
+          toast.success("Habit dipindahkan ke trash")
+          setSoftDeleteTarget(null)
+        },
+        onError: (err) => {
+          toast.error(err.message)
+          setSoftDeleteTarget(null)
+        },
+      })
     })
   }
 
@@ -134,11 +168,22 @@ export default function HabitsPage() {
     })
   }
 
+  // Permanent delete: opens AlertDialog instead of window.confirm
   const handlePermanentDelete = (id: string) => {
-    if (!confirm("Yakin ingin menghapus habit ini secara permanen?")) return
-    permanentDeleteHabit.mutate(id, {
-      onSuccess: () => toast.success("Habit dihapus permanen"),
-      onError: (err) => toast.error(err.message),
+    setPermanentDeleteTarget(id)
+  }
+
+  const confirmPermanentDelete = () => {
+    if (!permanentDeleteTarget) return
+    permanentDeleteHabit.mutate(permanentDeleteTarget, {
+      onSuccess: () => {
+        toast.success("Habit dihapus permanen")
+        setPermanentDeleteTarget(null)
+      },
+      onError: (err) => {
+        toast.error(err.message)
+        setPermanentDeleteTarget(null)
+      },
     })
   }
 
@@ -175,7 +220,9 @@ export default function HabitsPage() {
                     url: "/dashboard/habits",
                     tag: `streak-${habitId}-${currentStreak}`
                   }
-                ).catch(console.error)
+                ).catch(() => {
+              // Silent — notification is non-critical, don't crash UX
+            })
               }
             }
           }
@@ -190,7 +237,7 @@ export default function HabitsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             {showTrash ? "Trash - Habits" : "Habits"}
           </h1>
           <p className="text-muted-foreground">

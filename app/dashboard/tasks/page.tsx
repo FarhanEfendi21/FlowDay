@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
+import { z } from "zod"
 import {
   useGetTasks,
   useCreateTask,
@@ -23,10 +24,21 @@ import { useGetSubjects, useAddSubject, type Subject } from "@/features/subjects
 import { useAuth } from "@/features/auth"
 import { triggerTaskCompleteConfetti } from "@/lib/confetti"
 import { createNotification } from "@/features/notifications/api/notificationService"
+import { useRateLimit } from "@/hooks/use-rate-limit"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   Select,
   SelectContent,
@@ -65,6 +77,7 @@ import {
   Loader2,
   RotateCcw,
   Archive,
+  AlertTriangle,
   Clock,
   BookOpen,
 } from "lucide-react"
@@ -72,6 +85,25 @@ import { format, isPast } from "date-fns"
 import { id } from "date-fns/locale"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+
+// ── Zod schema for task form validation ───────────────────────
+export const taskSchema = z.object({
+  title: z
+    .string()
+    .min(1, "Judul tidak boleh kosong")
+    .max(255, "Judul maksimal 255 karakter")
+    .trim(),
+  description: z
+    .string()
+    .max(2000, "Deskripsi maksimal 2000 karakter")
+    .optional()
+    .or(z.literal("")),
+  subject: z.string().min(1, "Pilih mata kuliah terlebih dahulu"),
+  priority: z.enum(["low", "medium", "high"]),
+  dueDate: z.string().min(1, "Tanggal deadline wajib diisi"),
+  dueTime: z.string().regex(/^\d{2}:\d{2}$/, "Format waktu tidak valid"),
+})
+export type TaskFormValues = z.infer<typeof taskSchema>
 
 
 export default function TasksPage() {
@@ -81,6 +113,8 @@ export default function TasksPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingTask, setEditingTask]     = useState<Task | null>(null)
   const [showTrash, setShowTrash]         = useState(false)
+  // State for AlertDialog permanent delete confirmation
+  const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<string | null>(null)
 
   // ── React Query hooks ─────────────────────────────────────
   const { data: tasks = [], isLoading } = useGetTasks()
@@ -93,6 +127,10 @@ export default function TasksPage() {
   const permanentDelete = usePermanentDeleteTask()
 
   const { user } = useAuth()
+
+  // ── Rate limiting — prevent spam clicks ───────────────────
+  const { guard: guardCreate } = useRateLimit("task-create", { cooldownMs: 2000 })
+  const { guard: guardDelete } = useRateLimit("task-delete", { cooldownMs: 1000 })
 
   // ── Subjects dari Supabase (user-specific) ─────────────────
   const { data: subjects = [] } = useGetSubjects()
@@ -160,12 +198,14 @@ export default function TasksPage() {
 
   // ── Handlers ──────────────────────────────────────────────
   const handleCreate = (data: CreateTaskInput) => {
-    createTask.mutate(data, {
-      onSuccess: () => {
-        setIsAddDialogOpen(false)
-        toast.success("Tugas berhasil ditambahkan!")
-      },
-      onError: (err) => toast.error(err.message),
+    guardCreate(() => {
+      createTask.mutate(data, {
+        onSuccess: () => {
+          setIsAddDialogOpen(false)
+          toast.success("Tugas berhasil ditambahkan!")
+        },
+        onError: (err) => toast.error(err.message),
+      })
     })
   }
 
@@ -184,8 +224,10 @@ export default function TasksPage() {
   }
 
   const handleDelete = (taskId: string) => {
-    deleteTask.mutate(taskId, {
-      onError: (err) => toast.error(err.message),
+    guardDelete(() => {
+      deleteTask.mutate(taskId, {
+        onError: (err) => toast.error(err.message),
+      })
     })
   }
 
@@ -200,6 +242,7 @@ export default function TasksPage() {
           triggerTaskCompleteConfetti()
           
           if (user?.id) {
+            // Fire-and-forget: notification failure should not surface to user
             createNotification(
               "Tugas Selesai! 🎉",
               `Kamu berhasil menyelesaikan "${task.title}".`,
@@ -208,7 +251,9 @@ export default function TasksPage() {
                 url: "/dashboard/tasks",
                 tag: `task-complete-${task.id}`
               }
-            ).catch(console.error)
+            ).catch(() => {
+              // Silent — notification is non-critical, don't crash UX
+            })
           }
         }
       },
@@ -223,11 +268,22 @@ export default function TasksPage() {
     })
   }
 
+  // Opens the AlertDialog — actual delete runs in onConfirm
   const handlePermanentDelete = (taskId: string) => {
-    if (!confirm("Hapus permanen? Tindakan ini tidak dapat dibatalkan!")) return
-    permanentDelete.mutate(taskId, {
-      onSuccess: () => toast.success("Tugas berhasil dihapus permanen!"),
-      onError: (err) => toast.error(err.message),
+    setPermanentDeleteTarget(taskId)
+  }
+
+  const confirmPermanentDelete = () => {
+    if (!permanentDeleteTarget) return
+    permanentDelete.mutate(permanentDeleteTarget, {
+      onSuccess: () => {
+        toast.success("Tugas berhasil dihapus permanen!")
+        setPermanentDeleteTarget(null)
+      },
+      onError: (err) => {
+        toast.error(err.message)
+        setPermanentDeleteTarget(null)
+      },
     })
   }
 
@@ -236,7 +292,7 @@ export default function TasksPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             {showTrash ? "Trash - Tasks" : "Tasks"}
           </h1>
           <p className="text-muted-foreground">
@@ -471,16 +527,49 @@ export default function TasksPage() {
             <DialogTitle>Edit Tugas</DialogTitle>
           </DialogHeader>
           {editingTask && (
-            <TaskForm
-              key={editingTask.id}
-              subjects={expandedSubjects}
-              initialData={editingTask}
-              isLoading={updateTask.isPending}
-              onEdit={handleUpdate}
-            />
-          )}
+          <TaskForm
+            key={editingTask.id}
+            subjects={expandedSubjects}
+            initialData={editingTask}
+            isLoading={updateTask.isPending}
+            onEdit={handleUpdate}
+          />
+        )}
         </DialogContent>
       </Dialog>
+
+      {/* Permanent Delete Confirmation — replaces window.confirm */}
+      <AlertDialog
+        open={!!permanentDeleteTarget}
+        onOpenChange={(open) => !open && setPermanentDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Hapus Permanen?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Tugas akan dihapus secara permanen
+              dan tidak dapat dipulihkan lagi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmPermanentDelete}
+              disabled={permanentDelete.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {permanentDelete.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menghapus...</>
+              ) : (
+                "Ya, Hapus Permanen"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
@@ -626,6 +715,7 @@ function TaskForm({
   const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false)
   const [newSubjectName, setNewSubjectName] = useState("")
   const [newSubjectHasPracticum, setNewSubjectHasPracticum] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Import hooks untuk tambah mata kuliah
   const addSubjectMutation = useAddSubject()
@@ -667,14 +757,33 @@ function TaskForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim()) return
-    if (!subject) {
-      toast.error("Pilih mata kuliah terlebih dahulu")
-      return
-    }
+    setErrors({})
 
     // Combine date and time into ISO datetime string
     const dueDatetime = combineDateTimeISO(dueDate, dueTime)
+
+    try {
+      taskSchema.parse({
+        title: title.trim(),
+        description: description.trim() || "",
+        subject,
+        priority,
+        dueDate,
+        dueTime
+      })
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const newErrors: Record<string, string> = {}
+        error.errors.forEach((err) => {
+          if (err.path[0]) {
+            newErrors[err.path[0].toString()] = err.message
+          }
+        })
+        setErrors(newErrors)
+        toast.error("Mohon periksa kembali isian form")
+        return
+      }
+    }
 
     if (initialData) {
       onEdit?.({
@@ -707,7 +816,9 @@ function TaskForm({
           placeholder="Masukkan judul tugas"
           required
           disabled={isLoading}
+          className={errors.title ? "border-destructive focus-visible:ring-destructive" : ""}
         />
+        {errors.title && <p className="text-xs font-medium text-destructive">{errors.title}</p>}
       </div>
       <div className="space-y-2">
         <Label htmlFor="task-description">Deskripsi (Opsional)</Label>
@@ -718,7 +829,9 @@ function TaskForm({
           placeholder="Tambahkan deskripsi"
           rows={3}
           disabled={isLoading}
+          className={errors.description ? "border-destructive focus-visible:ring-destructive" : ""}
         />
+        {errors.description && <p className="text-xs font-medium text-destructive">{errors.description}</p>}
       </div>
       <div className="space-y-4">
         <div className="space-y-2">
@@ -767,7 +880,8 @@ function TaskForm({
               )}
             </SelectContent>
           </Select>
-          {subjects.length === 0 && (
+          {errors.subject && <p className="text-xs font-medium text-destructive">{errors.subject}</p>}
+          {subjects.length === 0 && !errors.subject && (
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <span>💡</span>
               <span>Klik "Tambah Mata Kuliah Baru" untuk memulai</span>
@@ -786,6 +900,7 @@ function TaskForm({
               <SelectItem value="high">Tinggi</SelectItem>
             </SelectContent>
           </Select>
+          {errors.priority && <p className="text-xs font-medium text-destructive">{errors.priority}</p>}
         </div>
       </div>
 
@@ -897,15 +1012,20 @@ function TaskForm({
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
             disabled={isLoading}
+            className={errors.dueDate ? "border-destructive focus-visible:ring-destructive" : ""}
           />
+          {errors.dueDate && <p className="text-xs font-medium text-destructive">{errors.dueDate}</p>}
         </div>
-        <TimePicker
-          id="task-dueTime"
-          label="Waktu Deadline"
-          value={dueTime}
-          onChange={handleDueTimeChange}
-          disabled={isLoading}
-        />
+        <div className="space-y-2">
+          <TimePicker
+            id="task-dueTime"
+            label="Waktu Deadline"
+            value={dueTime}
+            onChange={handleDueTimeChange}
+            disabled={isLoading}
+          />
+          {errors.dueTime && <p className="text-xs font-medium text-destructive">{errors.dueTime}</p>}
+        </div>
       </div>
       {initialData && (
         <div className="space-y-2">

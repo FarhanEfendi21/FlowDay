@@ -48,6 +48,8 @@ export default function AnalyticsPage() {
     low:    tasks.filter((t) => t.priority === "low").length,
   }), [tasks])
 
+  const totalPriority = priorityStats.high + priorityStats.medium + priorityStats.low;
+
   // ── Habit consistency chart dari habitStats RPC ────────────
   // habitStats sudah berisi completion_rate per habit (30 hari),
   // kita gunakan rata-rata sebagai indikator konsistensi
@@ -57,13 +59,13 @@ export default function AnalyticsPage() {
     return Math.round(total / habitStats.length)
   }, [habitStats])
 
-  const isLoading = loadingSummary || loadingWeekly || loadingSubjects || loadingHabits || loadingTasks
+  // Loading states are handled individually per component for better UX.
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Analytics</h1>
         <p className="text-muted-foreground">
           Lihat statistik dan progress belajarmu
         </p>
@@ -127,7 +129,7 @@ export default function AnalyticsPage() {
         <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-xl">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />
           <CardHeader className="relative">
-            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <CardTitle className="flex items-center gap-2 text-xl font-semibold">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
                 <TrendingUp className="h-4 w-4 text-primary" />
               </div>
@@ -138,11 +140,12 @@ export default function AnalyticsPage() {
             <div className="h-[250px]">
               {loadingWeekly ? (
                 <div className="flex items-end gap-2 h-full">
-                  {Array.from({ length: 7 }).map((_, i) => (
+                  {/* Deterministic heights — no Math.random() to avoid hydration mismatch */}
+                  {[50, 75, 40, 90, 60, 80, 35].map((h, i) => (
                     <Skeleton
                       key={i}
                       className="flex-1 rounded"
-                      style={{ height: `${30 + Math.random() * 60}%` }}
+                      style={{ height: `${h}%` }}
                     />
                   ))}
                 </div>
@@ -181,7 +184,7 @@ export default function AnalyticsPage() {
                     />
                     <Bar
                       dataKey="completed"
-                      fill="var(--primary)"
+                      fill="var(--chart-1)"
                       radius={[4, 4, 0, 0]}
                       maxBarSize={40}
                     />
@@ -202,7 +205,7 @@ export default function AnalyticsPage() {
         <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-xl">
           <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-transparent" />
           <CardHeader className="relative">
-            <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <CardTitle className="flex items-center gap-2 text-xl font-semibold">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500/10">
                 <Flame className="h-4 w-4 text-orange-500" />
               </div>
@@ -261,7 +264,7 @@ export default function AnalyticsPage() {
       <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-xl">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent" />
         <CardHeader className="relative">
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+          <CardTitle className="flex items-center gap-2 text-xl font-semibold">
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-500/10">
               <BookOpen className="h-4 w-4 text-purple-500" />
             </div>
@@ -329,9 +332,12 @@ export default function AnalyticsPage() {
                   </p>
                 )}
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-red-600 shadow-lg shadow-red-500/30">
-                <div className="h-4 w-4 rounded-full bg-white" />
-              </div>
+              <MiniDonut 
+                value={priorityStats.high} 
+                total={totalPriority} 
+                colorClass="text-red-500" 
+                textClass="text-red-500" 
+              />
             </div>
           </CardContent>
         </Card>
@@ -349,9 +355,12 @@ export default function AnalyticsPage() {
                   </p>
                 )}
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-yellow-500 to-yellow-600 shadow-lg shadow-yellow-500/30">
-                <div className="h-4 w-4 rounded-full bg-white" />
-              </div>
+              <MiniDonut 
+                value={priorityStats.medium} 
+                total={totalPriority} 
+                colorClass="text-yellow-500" 
+                textClass="text-yellow-500" 
+              />
             </div>
           </CardContent>
         </Card>
@@ -369,9 +378,12 @@ export default function AnalyticsPage() {
                   </p>
                 )}
               </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-green-600 shadow-lg shadow-green-500/30">
-                <div className="h-4 w-4 rounded-full bg-white" />
-              </div>
+              <MiniDonut 
+                value={priorityStats.low} 
+                total={totalPriority} 
+                colorClass="text-green-500" 
+                textClass="text-green-500" 
+              />
             </div>
           </CardContent>
         </Card>
@@ -417,5 +429,43 @@ function StatsCard({
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function MiniDonut({ value, total, colorClass, textClass }: { value: number; total: number; colorClass: string; textClass: string }) {
+  const pct = total > 0 ? (value / total) * 100 : 0;
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (pct / 100) * circumference;
+  
+  return (
+    <div className="relative flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 shrink-0 drop-shadow-sm">
+      <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+        <circle
+          cx="50"
+          cy="50"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="10"
+          fill="transparent"
+          className="text-muted/20"
+        />
+        <circle
+          cx="50"
+          cy="50"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="10"
+          fill="transparent"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className={cn("transition-all duration-1000 ease-in-out", colorClass)}
+          strokeLinecap="round"
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className={cn("text-[10px] sm:text-xs font-bold", textClass)}>{Math.round(pct)}%</span>
+      </div>
+    </div>
   )
 }
