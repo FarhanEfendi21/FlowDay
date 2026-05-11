@@ -1,16 +1,20 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
+import dynamic from "next/dynamic"
 import Image from "next/image"
 import Link from "next/link"
 import { useTheme } from "next-themes"
 import { motion, useInView, useScroll, useTransform } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/logo"
-import Galaxy from "@/components/ui/galaxy"
-import PixelBlast from "@/components/ui/pixel-blast"
-import LogoLoop from "@/components/ui/logo-loop"
 import CarouselSteps from "@/components/ui/carousel-steps"
+
+// Removed heavy 3D backgrounds to reduce bundle size
+const LogoLoop = dynamic(() => import("@/components/ui/logo-loop"), {
+  ssr: false,
+  loading: () => null,
+})
 import { 
   CheckCircle2, 
   Calendar, 
@@ -86,48 +90,8 @@ export default function LandingPage() {
   
   return (
     <div className="relative min-h-screen bg-background overflow-hidden">
-      {/* Background - Galaxy for Dark Mode, PixelBlast for Light Mode */}
-      {mounted && (
-        <motion.div 
-          className="fixed inset-0 z-0 pointer-events-none"
-          style={{ opacity: galaxyOpacity }}
-        >
-          {theme === 'dark' ? (
-            <Galaxy
-              density={1.5}
-              glowIntensity={0.5}
-              saturation={0.6}
-              hueShift={220}
-              mouseRepulsion={true}
-              mouseInteraction={true}
-              twinkleIntensity={0.4}
-              rotationSpeed={0.05}
-              starSpeed={0.3}
-              transparent={true}
-            />
-          ) : (
-            <PixelBlast
-              variant="circle"
-              pixelSize={6}
-              color="#8B5CF6"
-              patternScale={3}
-              patternDensity={1.2}
-              pixelSizeJitter={0.5}
-              enableRipples
-              rippleSpeed={0.4}
-              rippleThickness={0.12}
-              rippleIntensityScale={1.5}
-              liquid
-              liquidStrength={0.12}
-              liquidRadius={1.2}
-              liquidWobbleSpeed={5}
-              speed={0.6}
-              edgeFade={0.25}
-              transparent
-            />
-          )}
-        </motion.div>
-      )}
+      {/* Background - Fallback static gradient instead of heavy 3D */}
+      <div className="fixed inset-0 z-0 pointer-events-none bg-gradient-to-br from-background via-background to-primary/5 opacity-50" />
 
       {/* Content */}
       <div className="relative z-10">
