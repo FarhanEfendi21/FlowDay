@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Logo } from "@/components/logo"
 import { PillNav } from "@/components/ui/pill-nav"
-import { useScrollDirection } from "@/hooks/use-scroll-direction"
 import { StaggeredMenu } from "@/components/ui/StaggeredMenu"
 import {
   DropdownMenu,
@@ -109,102 +108,221 @@ export default function DashboardLayout({
     }
   }
 
-  const { scrollDirection, scrollY } = useScrollDirection()
-  const isHidden = scrollDirection === "down" && scrollY > 80
-
   return (
     <div className="min-h-screen bg-background">
       {/* PWA: Offline indicator banner */}
       <OfflineIndicator />
 
-      {/* Unified Floating Pill Navbar (Premium UX with Smart Auto-Hide) */}
-      <motion.div
-        initial={{ y: 0 }}
-        animate={{ y: isHidden ? -100 : 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none"
-      >
-        <PillNav
-        logo={mounted && theme === "dark" ? "/icons/white-logo.png" : "/icons/black-logo.png"}
-        logoAlt="FlowDay Logo"
-        items={pillNavItems}
-        activeHref={pathname}
-        baseColor="hsl(var(--background))"
-        pillColor="hsl(var(--foreground))"
-        hoveredPillTextColor="hsl(var(--background))"
-        pillTextColor="hsl(var(--background))"
-        initialLoadAnimation={true}
-        actions={
-          <div className="flex items-center gap-1 md:gap-2">
+      {/* Desktop: PillNav with actions (≥1024px) */}
+      <div className="hidden lg:block sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
+        <div className="pill-nav-wrapper">
+          <PillNav
+            logo={mounted && theme === "dark" ? "/icons/white-logo.png" : "/icons/black-logo.png"}
+            logoAlt="FlowDay Logo"
+            items={pillNavItems}
+            activeHref={pathname}
+            baseColor="hsl(var(--background))"
+            pillColor="hsl(var(--foreground))"
+            hoveredPillTextColor="hsl(var(--background))"
+            pillTextColor="hsl(var(--background))"
+            initialLoadAnimation={true}
+          />
+          <div className="flex items-center gap-2">
             <NotificationBell />
             {mounted && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-full h-8 w-8 md:h-10 md:w-10"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               >
-                <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
                 <span className="sr-only">Toggle theme</span>
               </Button>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 md:h-10 md:w-10 overflow-hidden ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                  <Avatar className="h-7 w-7 md:h-8 md:w-8">
-                    <AvatarFallback 
-                      className="text-white text-[10px] md:text-xs border shadow-sm"
-                      style={{ background: generateAvatarGradient(userName || "") }}
-                    >
+                <Button variant="ghost" size="icon" className="rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="bg-foreground text-background text-sm">
                       {userInitial}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 mt-2 p-1.5 rounded-xl shadow-2xl border-muted/50 backdrop-blur-xl">
-                <div className="px-2 py-1.5 mb-1">
-                  <p className="text-sm font-semibold truncate">{userName}</p>
-                  <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
-                </div>
-                <DropdownMenuSeparator className="bg-muted/50" />
-                <DropdownMenuItem asChild className="rounded-lg cursor-pointer">
-                  <Link href="/dashboard/settings" className="flex items-center gap-3 py-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span>Profil Saya</span>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/settings" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Profil Saya
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild className="rounded-lg cursor-pointer">
-                  <Link href="/dashboard/settings#notifications" className="flex items-center gap-3 py-2">
-                    <Settings className="h-4 w-4 text-muted-foreground" />
-                    <span>Pengaturan</span>
+                <DropdownMenuItem asChild>
+                  <Link href="/dashboard/settings#notifications" className="flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    Pengaturan
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-muted/50" />
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={(e) => {
-                    e.preventDefault()
+                    e.preventDefault() // prevent dropdown from immediately closing when opening dialog sometimes
                     setIsLogoutDialogOpen(true)
                   }}
-                  className="rounded-lg flex items-center gap-3 py-2 text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
+                  className="flex items-center gap-2 text-destructive cursor-pointer"
                 >
                   <LogOut className="h-4 w-4" />
-                  <span>Logout</span>
+                  Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        }
-      />
-      </motion.div>
+        </div>
+      </div>
 
+      {/* Sidebar - Hidden on mobile, persistent on tablet (md), hidden on lg (desktop uses PillNav) */}
+      <aside
+        className={cn(
+          "fixed top-0 left-0 z-40 h-full w-64 border-r border-border bg-background transition-transform",
+          "hidden md:block lg:hidden" // Only visible on tablet
+        )}
+      >
+        <div className="flex h-full flex-col">
+          {/* Logo */}
+          <div className="flex h-16 items-center justify-between border-b border-border px-6">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <Logo size={32} showText={false} />
+            </Link>
+          </div>
 
+          {/* Navigation */}
+          <nav className="flex-1 space-y-1 p-4">
+            {navigation.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <div key={item.name}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-muted text-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    {item.name}
+                  </Link>
+                </div>
+              )
+            })}
+          </nav>
 
-      <div className="flex-1">
+          {/* User section */}
+          <div className="border-t border-border p-4">
+            <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+              <Avatar className="h-9 w-9">
+                <AvatarFallback 
+                  className="text-white text-sm border shadow-sm"
+                  style={{ background: generateAvatarGradient(userName || "") }}
+                >
+                  {userInitial}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 truncate">
+                <p className="text-sm font-medium">{userName}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {userEmail}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <div className="md:pl-64 lg:pl-0 pb-16 md:pb-0">
+        {/* Mobile Navigation & Header (Replaces topbar and bottom nav) */}
+        <StaggeredMenu
+          className="md:hidden"
+          isFixed={true}
+          position="right"
+          colors={['var(--primary)', 'color-mix(in oklch, var(--primary), transparent 50%)']}
+          currentPath={pathname}
+          displayItemNumbering={true}
+          items={navigation.map(n => ({ 
+            label: n.name, 
+            link: n.href, 
+            icon: <n.icon className="w-5 h-5" /> 
+          }))}
+          headerLeft={
+            <Link href="/dashboard" className="flex items-center gap-2 pl-2">
+              <Logo size={28} showText={false} />
+            </Link>
+          }
+          headerRight={
+            <>
+              <NotificationBell />
+              {mounted && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="mr-1"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                >
+                  <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                  <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                  <span className="sr-only">Toggle theme</span>
+                </Button>
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback 
+                        className="text-white text-sm border shadow-sm"
+                        style={{ background: generateAvatarGradient(userName || "") }}
+                      >
+                        {userInitial}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/settings" className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Profil Saya
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard/settings#notifications" className="flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      Pengaturan
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      setIsLogoutDialogOpen(true)
+                    }}
+                    className="flex items-center gap-2 text-destructive cursor-pointer"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          }
+        />
+
+        {/* Placeholder for fixed header on mobile */}
+        <div className="h-16 md:hidden border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10" aria-hidden="true" />
+
         {/* Page content */}
-        <main className="p-4 md:p-8 pt-20 md:pt-24 max-w-[1400px] mx-auto min-h-screen">
-          {children}
-        </main>
+        <main className="p-6 md:p-8 max-w-[1400px] mx-auto min-h-[calc(100vh-4rem)]">{children}</main>
       </div>
 
       {/* Notifications */}

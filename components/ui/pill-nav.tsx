@@ -24,7 +24,6 @@ interface PillNavProps {
   pillTextColor?: string
   onMobileMenuClick?: () => void
   initialLoadAnimation?: boolean
-  actions?: React.ReactNode
 }
 
 export function PillNav({
@@ -39,8 +38,7 @@ export function PillNav({
   hoveredPillTextColor = '#120F17',
   pillTextColor,
   onMobileMenuClick,
-  initialLoadAnimation = true,
-  actions
+  initialLoadAnimation = true
 }: PillNavProps) {
   const resolvedPillTextColor = pillTextColor ?? baseColor
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -272,12 +270,6 @@ export function PillNav({
             ))}
           </ul>
         </div>
-
-        {actions && (
-          <div className="pill-actions flex items-center gap-2 pr-1 md:pr-2">
-            {actions}
-          </div>
-        )}
 
         <button
           className="mobile-menu-button mobile-only"

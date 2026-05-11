@@ -1,15 +1,13 @@
 .pill-nav-container {
-  position: fixed;
-  top: 1rem;
-  left: 0;
-  right: 0;
-  z-index: 9999; /* Higher than other fixed elements */
+  position: relative;
+  z-index: 99;
   width: 100%;
   display: flex;
-  justify-content: center; /* Center the pill */
+  justify-content: space-between;
   align-items: center;
-  padding: 0 1rem;
-  pointer-events: none; /* Let clicks pass through outside the pill */
+  padding: 1em 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .pill-nav-wrapper {
@@ -33,26 +31,15 @@
 }
 
 .pill-nav {
-  --nav-h: 48px;
-  --logo: 32px;
-  --pill-pad-x: 16px;
-  --pill-gap: 4px;
+  --nav-h: 42px;
+  --logo: 36px;
+  --pill-pad-x: 18px;
+  --pill-gap: 3px;
   width: max-content;
   display: flex;
   align-items: center;
   gap: 8px;
   box-sizing: border-box;
-  background: color-mix(in oklch, var(--base, #fff), transparent 30%);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid color-mix(in oklch, var(--base, #fff), transparent 85%);
-  padding: 4px;
-  border-radius: 9999px;
-  box-shadow: 
-    0 10px 30px -10px rgb(0 0 0 / 0.2), 
-    0 4px 6px -2px rgb(0 0 0 / 0.05),
-    inset 0 0 0 1px rgb(255 255 255 / 0.1);
-  pointer-events: auto;
 }
 
 @media (max-width: 1024px) {
@@ -67,8 +54,8 @@
   position: relative;
   display: flex;
   align-items: center;
-  height: calc(var(--nav-h) - 8px);
-  background: transparent;
+  height: var(--nav-h);
+  background: var(--base, #000);
   border-radius: 9999px;
 }
 
@@ -272,11 +259,4 @@
   background-color: var(--pill-bg);
   color: var(--pill-text);
   font-weight: 600;
-}
-
-.pill-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 100%;
 }
