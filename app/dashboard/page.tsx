@@ -355,7 +355,7 @@ export default function DashboardPage() {
 
       {/* Add Task Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Tambah Tugas Baru</DialogTitle>
           </DialogHeader>

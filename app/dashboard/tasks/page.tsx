@@ -309,7 +309,7 @@ export default function TasksPage() {
                   <Plus className="h-4 w-4" /> Tambah Tugas
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
+              <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader><DialogTitle>Tambah Tugas Baru</DialogTitle></DialogHeader>
                 <TaskForm subjects={expandedSubjects} isLoading={createTask.isPending} onAdd={handleCreate} />
               </DialogContent>
@@ -451,7 +451,7 @@ export default function TasksPage() {
 
       {/* Edit & Delete Dialogs */}
       <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
+        <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Tugas</DialogTitle></DialogHeader>
           {editingTask && <TaskForm subjects={expandedSubjects} initialData={editingTask} isLoading={updateTask.isPending} onEdit={handleUpdate} />}
         </DialogContent>

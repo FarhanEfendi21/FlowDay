@@ -319,7 +319,7 @@ export default function DashboardLayout({
         />
 
         {/* Placeholder for fixed header on mobile */}
-        <div className="h-16 md:hidden border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10" aria-hidden="true" />
+        <div className="h-[60px] md:hidden border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10" aria-hidden="true" />
 
         {/* Page content */}
         <main className="p-6 md:p-8 max-w-[1400px] mx-auto min-h-[calc(100vh-4rem)]">{children}</main>
