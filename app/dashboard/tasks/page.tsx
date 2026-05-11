@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
-import { z } from "zod"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import {
   useGetTasks,
   useCreateTask,
@@ -16,11 +15,8 @@ import {
   type TaskStatus,
   type CreateTaskInput,
   type UpdateTaskInput,
-  extractDate,
-  extractTime,
-  combineDateTimeISO,
 } from "@/features/tasks"
-import { useGetSubjects, useAddSubject, type Subject } from "@/features/subjects"
+import { useGetSubjects } from "@/features/subjects"
 import { useAuth } from "@/features/auth"
 import { triggerTaskCompleteConfetti } from "@/lib/confetti"
 import { createNotification } from "@/features/notifications/api/notificationService"
@@ -60,12 +56,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
 import { Empty, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
-import { TimePicker } from "@/components/ui/time-picker"
 import { CountdownBadge } from "@/components/tasks/countdown-badge"
 import {
   Plus,
@@ -75,36 +66,18 @@ import {
   Calendar,
   CheckSquare,
   Loader2,
-  RotateCcw,
   Archive,
   AlertTriangle,
   Clock,
-  BookOpen,
+  CheckCircle2,
+  X,
+  RotateCcw,
 } from "lucide-react"
 import { format, isPast } from "date-fns"
 import { id } from "date-fns/locale"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-
-// ── Zod schema for task form validation ───────────────────────
-export const taskSchema = z.object({
-  title: z
-    .string()
-    .min(1, "Judul tidak boleh kosong")
-    .max(255, "Judul maksimal 255 karakter")
-    .trim(),
-  description: z
-    .string()
-    .max(2000, "Deskripsi maksimal 2000 karakter")
-    .optional()
-    .or(z.literal("")),
-  subject: z.string().min(1, "Pilih mata kuliah terlebih dahulu"),
-  priority: z.enum(["low", "medium", "high"]),
-  dueDate: z.string().min(1, "Tanggal deadline wajib diisi"),
-  dueTime: z.string().regex(/^\d{2}:\d{2}$/, "Format waktu tidak valid"),
-})
-export type TaskFormValues = z.infer<typeof taskSchema>
-
+import { TaskForm } from "@/components/tasks/task-form"
 
 export default function TasksPage() {
   const [filterSubject, setFilterSubject] = useState<string>("all")
@@ -113,8 +86,11 @@ export default function TasksPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [editingTask, setEditingTask]     = useState<Task | null>(null)
   const [showTrash, setShowTrash]         = useState(false)
-  // State for AlertDialog permanent delete confirmation
   const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<string | null>(null)
+
+  // ── Bulk Selection State ──────────────────────────────────
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set())
+  const isSelectionMode = selectedTaskIds.size > 0
 
   // ── React Query hooks ─────────────────────────────────────
   const { data: tasks = [], isLoading } = useGetTasks()
@@ -127,56 +103,30 @@ export default function TasksPage() {
   const permanentDelete = usePermanentDeleteTask()
 
   const { user } = useAuth()
-
-  // ── Rate limiting — prevent spam clicks ───────────────────
   const { guard: guardCreate } = useRateLimit("task-create", { cooldownMs: 2000 })
-  const { guard: guardDelete } = useRateLimit("task-delete", { cooldownMs: 1000 })
 
-  // ── Subjects dari Supabase (user-specific) ─────────────────
   const { data: subjects = [] } = useGetSubjects()
 
-  // ── Expand subjects: jika punya praktikum, buat 2 entries ──
   const expandedSubjects = useMemo(() => {
     const result: Array<{ id: string; name: string; displayName: string; isPracticum: boolean }> = []
-    
     subjects.forEach((subject) => {
-      // Tambah entry untuk teori (selalu ada)
-      result.push({
-        id: subject.id,
-        name: subject.name,
-        displayName: subject.name,
-        isPracticum: false,
-      })
-      
-      // Jika punya praktikum, tambah entry terpisah
+      result.push({ id: subject.id, name: subject.name, displayName: subject.name, isPracticum: false })
       if (subject.hasPracticum) {
-        result.push({
-          id: `${subject.id}-practicum`,
-          name: `${subject.name} (Praktikum)`,
-          displayName: `${subject.name} (Praktikum)`,
-          isPracticum: true,
-        })
+        result.push({ id: `${subject.id}-practicum`, name: `${subject.name} (Praktikum)`, displayName: `${subject.name} (Praktikum)`, isPracticum: true })
       }
     })
-    
     return result
   }, [subjects])
 
-  // ── Client-side filter + sort ─────────────────────────────
   const filteredTasks = useMemo(() => {
     return tasks
       .filter((task) => {
         if (filterSubject !== "all" && task.subject !== filterSubject) return false
         if (filterStatus  !== "all" && task.status  !== filterStatus)  return false
-        
-        // Search filter (case-insensitive)
         if (searchQuery.trim()) {
           const query = searchQuery.toLowerCase()
-          const matchesTitle = task.title.toLowerCase().includes(query)
-          const matchesDescription = task.description?.toLowerCase().includes(query) ?? false
-          if (!matchesTitle && !matchesDescription) return false
+          return task.title.toLowerCase().includes(query) || task.description?.toLowerCase().includes(query)
         }
-        
         return true
       })
       .sort((a, b) => {
@@ -188,15 +138,61 @@ export default function TasksPage() {
   const todoTasks = filteredTasks.filter((t) => t.status === "todo")
   const doneTasks = filteredTasks.filter((t) => t.status === "done")
 
-  // ── Filter subjects: untuk dropdown filter (include expanded) ──
-  const filterSubjects = useMemo(() => {
-    const expandedNames = expandedSubjects.map(s => s.name)
-    const fromTasks = [...new Set(tasks.map((t) => t.subject).filter(Boolean))]
-    const merged = [...new Set([...expandedNames, ...fromTasks])]
-    return merged.sort()
-  }, [expandedSubjects, tasks])
+  // ── Selection Handlers ────────────────────────────────────
+  const toggleSelectTask = (taskId: string) => {
+    const newSelected = new Set(selectedTaskIds)
+    if (newSelected.has(taskId)) newSelected.delete(taskId)
+    else newSelected.add(taskId)
+    setSelectedTaskIds(newSelected)
+  }
 
-  // ── Handlers ──────────────────────────────────────────────
+  const selectAllVisible = () => {
+    if (selectedTaskIds.size === filteredTasks.length) setSelectedTaskIds(new Set())
+    else setSelectedTaskIds(new Set(filteredTasks.map(t => t.id)))
+  }
+
+  // ── Bulk Actions ──────────────────────────────────────────
+  const handleBulkComplete = async () => {
+    const ids = Array.from(selectedTaskIds)
+    let completedCount = 0
+    
+    for (const id of ids) {
+      const task = tasks.find(t => t.id === id)
+      if (task && task.status === "todo") {
+        await toggleStatus.mutateAsync(id)
+        completedCount++
+      }
+    }
+    
+    if (completedCount > 0) {
+      triggerTaskCompleteConfetti()
+      toast.success(`${completedCount} tugas berhasil diselesaikan!`)
+    }
+    setSelectedTaskIds(new Set())
+  }
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedTaskIds)
+    for (const id of ids) {
+      await deleteTask.mutateAsync(id)
+    }
+    toast.success(`${ids.length} tugas dipindahkan ke tempat sampah`, {
+      action: {
+        label: "Undo",
+        onClick: () => handleBulkRestore(ids)
+      }
+    })
+    setSelectedTaskIds(new Set())
+  }
+
+  const handleBulkRestore = async (ids: string[]) => {
+    for (const id of ids) {
+      await restoreTask.mutateAsync(id)
+    }
+    toast.success(`${ids.length} tugas dikembalikan`)
+  }
+
+  // ── Individual Handlers ──────────────────────────────────
   const handleCreate = (data: CreateTaskInput) => {
     guardCreate(() => {
       createTask.mutate(data, {
@@ -224,36 +220,33 @@ export default function TasksPage() {
   }
 
   const handleDelete = (taskId: string) => {
-    guardDelete(() => {
-      deleteTask.mutate(taskId, {
-        onError: (err) => toast.error(err.message),
-      })
+    const task = tasks.find(t => t.id === taskId)
+    deleteTask.mutate(taskId, {
+      onSuccess: () => {
+        toast.success("Tugas dipindahkan ke tempat sampah", {
+          duration: 5000,
+          action: {
+            label: "Undo",
+            onClick: () => handleRestore(taskId)
+          }
+        })
+      },
+      onError: (err) => toast.error(err.message),
     })
   }
 
   const handleToggle = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId)
     const isCompleting = task && task.status === "todo"
-
     toggleStatus.mutate(taskId, {
       onSuccess: () => {
         if (isCompleting) {
-          // Trigger animations and notifications
           triggerTaskCompleteConfetti()
-          
           if (user?.id) {
-            // Fire-and-forget: notification failure should not surface to user
-            createNotification(
-              "Tugas Selesai! 🎉",
-              `Kamu berhasil menyelesaikan "${task.title}".`,
-              "task_complete",
-              {
-                url: "/dashboard/tasks",
-                tag: `task-complete-${task.id}`
-              }
-            ).catch(() => {
-              // Silent — notification is non-critical, don't crash UX
-            })
+            createNotification("Tugas Selesai! 🎉", `Kamu berhasil menyelesaikan "${task.title}".`, "task_complete", {
+              url: "/dashboard/tasks",
+              tag: `task-complete-${task.id}`
+            }).catch(() => {})
           }
         }
       },
@@ -266,11 +259,6 @@ export default function TasksPage() {
       onSuccess: () => toast.success("Tugas berhasil dikembalikan!"),
       onError: (err) => toast.error(err.message),
     })
-  }
-
-  // Opens the AlertDialog — actual delete runs in onConfirm
-  const handlePermanentDelete = (taskId: string) => {
-    setPermanentDeleteTarget(taskId)
   }
 
   const confirmPermanentDelete = () => {
@@ -288,285 +276,196 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative min-h-[calc(100vh-12rem)]">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">
-            {showTrash ? "Trash - Tasks" : "Tasks"}
+            {showTrash ? "Tempat Sampah" : "Tugas"}
           </h1>
           <p className="text-muted-foreground">
-            {showTrash ? "Tugas yang dihapus" : "Kelola tugas kuliah dan deadline kamu"}
+            {showTrash ? "Tugas yang baru saja dihapus" : "Kelola tugas kuliah dan deadline kamu"}
           </p>
         </div>
         <div className="flex gap-2">
           <Button
             variant={showTrash ? "outline" : "secondary"}
             className="gap-2"
-            onClick={() => setShowTrash(!showTrash)}
+            onClick={() => {
+              setShowTrash(!showTrash)
+              setSelectedTaskIds(new Set())
+            }}
           >
             {showTrash ? (
-              <>
-                <CheckSquare className="h-4 w-4" />
-                Lihat Tasks
-              </>
+              <><CheckSquare className="h-4 w-4" /> Lihat Tugas Aktif</>
             ) : (
-              <>
-                <Archive className="h-4 w-4" />
-                Lihat Trash ({deletedTasks.length})
-              </>
+              <><Archive className="h-4 w-4" /> Trash ({deletedTasks.length})</>
             )}
           </Button>
           {!showTrash && (
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Tambah Tugas
+                  <Plus className="h-4 w-4" /> Tambah Tugas
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>Tambah Tugas Baru</DialogTitle>
-                </DialogHeader>
-                <TaskForm
-                  subjects={expandedSubjects}
-                  isLoading={createTask.isPending}
-                  onAdd={handleCreate}
-                />
+                <DialogHeader><DialogTitle>Tambah Tugas Baru</DialogTitle></DialogHeader>
+                <TaskForm subjects={expandedSubjects} isLoading={createTask.isPending} onAdd={handleCreate} />
               </DialogContent>
             </Dialog>
           )}
         </div>
       </div>
 
-      {/* Filters - Only show when not in trash view */}
+      {/* Filters */}
       {!showTrash && (
         <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
-        <Input
-          type="text"
-          placeholder="Cari..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full sm:w-[200px]"
-        />
-        <Select value={filterSubject} onValueChange={setFilterSubject}>
-          <SelectTrigger className="w-full sm:w-[160px]">
-            <SelectValue placeholder="Mata Kuliah" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Mata Kuliah</SelectItem>
-            {expandedSubjects.map((subject) => (
-              <SelectItem key={subject.id} value={subject.name}>
-                <div className="flex items-center gap-2">
-                  <span>{subject.displayName}</span>
-                  {subject.isPracticum && (
-                    <span className="inline-flex items-center justify-center rounded-full bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                      P
-                    </span>
-                  )}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-full sm:w-[140px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Status</SelectItem>
-            <SelectItem value="todo">To Do</SelectItem>
-            <SelectItem value="done">Selesai</SelectItem>
-          </SelectContent>
-        </Select>
+          <Input
+            type="text"
+            placeholder="Cari tugas..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-[250px]"
+          />
+          <Select value={filterSubject} onValueChange={setFilterSubject}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Mata Kuliah" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Mata Kuliah</SelectItem>
+              {expandedSubjects.map((s) => (
+                <SelectItem key={s.id} value={s.name}>{s.displayName}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-full sm:w-[140px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Semua Status</SelectItem>
+              <SelectItem value="todo">To Do</SelectItem>
+              <SelectItem value="done">Selesai</SelectItem>
+            </SelectContent>
+          </Select>
+          {filteredTasks.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={selectAllVisible} className="text-muted-foreground ml-auto">
+              {selectedTaskIds.size === filteredTasks.length ? "Deselect All" : "Select All"}
+            </Button>
+          )}
         </div>
       )}
 
-      {/* Show Trash View */}
+      {/* Main Content Area */}
       {showTrash ? (
-        <>
+        <div className="space-y-4">
           {loadingTrash ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              Memuat trash...
-            </div>
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin" /></div>
           ) : deletedTasks.length === 0 ? (
-            <Card>
-              <CardContent className="py-16">
-                <Empty>
-                  <EmptyMedia variant="icon"><Trash2 /></EmptyMedia>
-                  <EmptyTitle>Trash kosong</EmptyTitle>
-                  <EmptyDescription>Tidak ada tugas yang dihapus</EmptyDescription>
-                </Empty>
-              </CardContent>
-            </Card>
+            <EmptyView icon={<Trash2 />} title="Trash Kosong" description="Tidak ada tugas di tempat sampah." />
+          ) : (
+            <div className="grid gap-2">
+              {deletedTasks.map(task => (
+                <TrashTaskCard 
+                  key={task.id} 
+                  task={task} 
+                  onRestore={() => handleRestore(task.id)} 
+                  onPermanentDelete={() => setPermanentDeleteTarget(task.id)} 
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {isLoading ? (
+            <div className="flex justify-center py-12"><Loader2 className="animate-spin" /></div>
+          ) : filteredTasks.length === 0 ? (
+            <EmptyView icon={<CheckSquare />} title="Belum Ada Tugas" description="Mulai dengan menambahkan tugas baru!" />
           ) : (
             <>
-              <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3">
-                <Input
-                  type="text"
-                  placeholder="Cari..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full sm:w-[200px]"
-                />
-              </div>
-              <div className="space-y-2">
-                {deletedTasks
-                  .filter((task) => {
-                    if (!searchQuery.trim()) return true
-                    const query = searchQuery.toLowerCase()
-                    const matchesTitle = task.title.toLowerCase().includes(query)
-                    const matchesDescription = task.description?.toLowerCase().includes(query) ?? false
-                    return matchesTitle || matchesDescription
-                  })
-                  .map((task) => (
-                    <TrashTaskCard
-                      key={task.id}
-                      task={task}
-                      onRestore={() => handleRestore(task.id)}
-                      onPermanentDelete={() => handlePermanentDelete(task.id)}
-                    />
-                  ))}
-              </div>
-              {deletedTasks.filter((task) => {
-                if (!searchQuery.trim()) return true
-                const query = searchQuery.toLowerCase()
-                const matchesTitle = task.title.toLowerCase().includes(query)
-                const matchesDescription = task.description?.toLowerCase().includes(query) ?? false
-                return matchesTitle || matchesDescription
-              }).length === 0 && (
-                <Card>
-                  <CardContent className="py-16">
-                    <Empty>
-                      <EmptyMedia variant="icon"><Trash2 /></EmptyMedia>
-                      <EmptyTitle>Tidak ada hasil</EmptyTitle>
-                      <EmptyDescription>Tidak ada tugas yang dihapus sesuai pencarian "{searchQuery}"</EmptyDescription>
-                    </Empty>
-                  </CardContent>
-                </Card>
+              {todoTasks.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Clock className="h-4 w-4" /> Belum Selesai ({todoTasks.length})
+                  </h2>
+                  <div className="grid gap-2">
+                    {todoTasks.map(task => (
+                      <TaskCard 
+                        key={task.id} 
+                        task={task} 
+                        selected={selectedTaskIds.has(task.id)}
+                        onSelect={() => toggleSelectTask(task.id)}
+                        onToggle={() => handleToggle(task.id)}
+                        onEdit={() => setEditingTask(task)}
+                        onDelete={() => handleDelete(task.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {doneTasks.length > 0 && (
+                <div className="space-y-3">
+                  <h2 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" /> Selesai ({doneTasks.length})
+                  </h2>
+                  <div className="grid gap-2">
+                    {doneTasks.map(task => (
+                      <TaskCard 
+                        key={task.id} 
+                        task={task} 
+                        selected={selectedTaskIds.has(task.id)}
+                        onSelect={() => toggleSelectTask(task.id)}
+                        onToggle={() => handleToggle(task.id)}
+                        onEdit={() => setEditingTask(task)}
+                        onDelete={() => handleDelete(task.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
               )}
             </>
           )}
-        </>
-      ) : (
-        <>
-          {/* Loading State */}
-          {isLoading && (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              Memuat tugas...
-            </div>
-          )}
-
-          {/* Task Lists */}
-          {!isLoading && (
-        <div className="space-y-6">
-          {/* To Do */}
-          <div className="space-y-3">
-            <h2 className="text-sm font-medium text-muted-foreground">
-              To Do ({todoTasks.length})
-            </h2>
-            {todoTasks.length > 0 ? (
-              <div className="space-y-2">
-                {todoTasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onToggle={() => handleToggle(task.id)}
-                    onEdit={() => setEditingTask(task)}
-                    onDelete={() => handleDelete(task.id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="py-8">
-                  <Empty>
-                    <EmptyMedia variant="icon"><CheckSquare /></EmptyMedia>
-                    <EmptyTitle>Tidak ada tugas pending</EmptyTitle>
-                    <EmptyDescription>Semua tugas sudah selesai atau belum ada tugas.</EmptyDescription>
-                  </Empty>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Done */}
-          {doneTasks.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-medium text-muted-foreground">
-                Selesai ({doneTasks.length})
-              </h2>
-              <div className="space-y-2">
-                {doneTasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onToggle={() => handleToggle(task.id)}
-                    onEdit={() => setEditingTask(task)}
-                    onDelete={() => handleDelete(task.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
-        )}
-      </>
       )}
 
-      {/* Edit Dialog */}
-      <Dialog
-        open={!!editingTask}
-        onOpenChange={(open) => !open && setEditingTask(null)}
-      >
+      {/* Floating Bulk Action Bar */}
+      {isSelectionMode && !showTrash && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
+          <div className="bg-foreground text-background px-4 py-3 rounded-full shadow-2xl flex items-center gap-4 border border-border/20 backdrop-blur-md">
+            <span className="text-sm font-bold px-2">{selectedTaskIds.size} dipilih</span>
+            <div className="h-4 w-[1px] bg-background/20" />
+            <Button variant="ghost" size="sm" onClick={handleBulkComplete} className="hover:bg-background/10 gap-2 h-8">
+              <CheckCircle2 className="h-4 w-4" /> Selesaikan
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleBulkDelete} className="hover:bg-destructive hover:text-white gap-2 h-8">
+              <Trash2 className="h-4 w-4" /> Hapus
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => setSelectedTaskIds(new Set())} className="h-8 w-8 hover:bg-background/10">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit & Delete Dialogs */}
+      <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Edit Tugas</DialogTitle>
-          </DialogHeader>
-          {editingTask && (
-          <TaskForm
-            key={editingTask.id}
-            subjects={expandedSubjects}
-            initialData={editingTask}
-            isLoading={updateTask.isPending}
-            onEdit={handleUpdate}
-          />
-        )}
+          <DialogHeader><DialogTitle>Edit Tugas</DialogTitle></DialogHeader>
+          {editingTask && <TaskForm subjects={expandedSubjects} initialData={editingTask} isLoading={updateTask.isPending} onEdit={handleUpdate} />}
         </DialogContent>
       </Dialog>
 
-      {/* Permanent Delete Confirmation — replaces window.confirm */}
-      <AlertDialog
-        open={!!permanentDeleteTarget}
-        onOpenChange={(open) => !open && setPermanentDeleteTarget(null)}
-      >
+      <AlertDialog open={!!permanentDeleteTarget} onOpenChange={(o) => !o && setPermanentDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              Hapus Permanen?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Tindakan ini tidak dapat dibatalkan. Tugas akan dihapus secara permanen
-              dan tidak dapat dipulihkan lagi.
-            </AlertDialogDescription>
+            <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="text-destructive" /> Hapus Permanen?</AlertDialogTitle>
+            <AlertDialogDescription>Tindakan ini tidak dapat dibatalkan. Tugas akan dihapus selamanya.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmPermanentDelete}
-              disabled={permanentDelete.isPending}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {permanentDelete.isPending ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Menghapus...</>
-              ) : (
-                "Ya, Hapus Permanen"
-              )}
-            </AlertDialogAction>
+            <AlertDialogAction onClick={confirmPermanentDelete} className="bg-destructive text-white hover:bg-destructive/90">Hapus</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -574,98 +473,35 @@ export default function TasksPage() {
   )
 }
 
-// ── TaskCard Component ─────────────────────────────────────────
-function TaskCard({
-  task,
-  onToggle,
-  onEdit,
-  onDelete,
-}: {
-  task: Task
-  onToggle: () => void
-  onEdit: () => void
-  onDelete: () => void
-}) {
-  const dueDate  = new Date(task.dueDate)
-  const isOverdue = isPast(dueDate) && task.status === "todo"
-
-  const priorityColors: Record<TaskPriority, string> = {
-    high:   "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-    medium: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-    low:    "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  }
-  const priorityLabels: Record<TaskPriority, string> = {
-    high: "Tinggi", medium: "Sedang", low: "Rendah",
-  }
-
+function TaskCard({ task, selected, onSelect, onToggle, onEdit, onDelete }: any) {
+  const isOverdue = isPast(new Date(task.dueDate)) && task.status === "todo"
   return (
     <Card className={cn(
-      "relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.01]",
-      task.status === "done" ? "opacity-60" : "",
-      isOverdue && "border-destructive/50"
+      "transition-all duration-200 group border-l-4",
+      selected ? "bg-primary/5 border-l-primary shadow-md" : "border-l-transparent",
+      task.status === "done" && "opacity-60",
+      isOverdue && !selected && "border-l-destructive bg-destructive/5"
     )}>
-      {/* Gradient Background for Overdue */}
-      {isOverdue && (
-        <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 to-transparent" />
-      )}
-      
-      <CardContent className="relative flex items-start gap-2 sm:gap-3 p-3 sm:p-4">
-        <Checkbox
-          checked={task.status === "done"}
-          onCheckedChange={onToggle}
-          className="mt-1 shrink-0"
-        />
+      <CardContent className="p-3 sm:p-4 flex items-start gap-3">
+        <div className="flex items-center gap-2 mt-1">
+          <Checkbox checked={selected} onCheckedChange={onSelect} />
+          <Checkbox checked={task.status === "done"} onCheckedChange={onToggle} />
+        </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <p className={`font-medium text-sm sm:text-base ${task.status === "done" ? "line-through text-muted-foreground" : ""}`}>
-                {task.title}
-              </p>
-              {task.description && (
-                <p className="mt-1 text-xs sm:text-sm text-muted-foreground line-clamp-2">
-                  {task.description}
-                </p>
-              )}
-              <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <Badge variant="secondary" className="text-[10px] sm:text-xs">{task.subject}</Badge>
-                <Badge className={`text-[10px] sm:text-xs ${priorityColors[task.priority]}`}>
-                  {priorityLabels[task.priority]}
-                </Badge>
-                {/* Realtime Countdown Badge */}
-                <CountdownBadge 
-                  deadline={task.dueDate} 
-                  status={task.status}
-                  variant="default"
-                />
-                {/* Detailed datetime info - hidden on mobile */}
-                <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {format(dueDate, "d MMM yyyy", { locale: id })}
-                </span>
-                <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  {format(dueDate, "HH:mm")}
-                </span>
-                {/* Mobile: compact date/time */}
-                <span className="sm:hidden flex items-center gap-1 text-[10px] text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {format(dueDate, "d MMM, HH:mm", { locale: id })}
-                </span>
+          <div className="flex justify-between items-start gap-2">
+            <div>
+              <p className={cn("font-semibold leading-none", task.status === "done" && "line-through text-muted-foreground")}>{task.title}</p>
+              {task.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{task.description}</p>}
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Badge variant="outline" className="text-[10px] uppercase tracking-wider">{task.subject}</Badge>
+                <CountdownBadge deadline={task.dueDate} status={task.status} />
               </div>
             </div>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8 shrink-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
+              <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onEdit} className="gap-2">
-                  <Pencil className="h-4 w-4" /> Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onDelete} className="gap-2 text-destructive">
-                  <Trash2 className="h-4 w-4" /> Hapus
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onEdit}><Pencil className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                <DropdownMenuItem onClick={onDelete} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Hapus</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -675,457 +511,29 @@ function TaskCard({
   )
 }
 
-// ── TaskForm Component ─────────────────────────────────────────
-function TaskForm({
-  subjects,
-  initialData,
-  isLoading,
-  onAdd,
-  onEdit,
-}: {
-  subjects: Array<{ id: string; name: string; displayName: string; isPracticum: boolean }>
-  initialData?: Task
-  isLoading?: boolean
-  onAdd?: (data: CreateTaskInput) => void
-  onEdit?: (data: UpdateTaskInput) => void
-}) {
-  const subjectNames = subjects.map(s => s.name)
-  
-  const [title,       setTitle]       = useState(initialData?.title       || "")
-  const [description, setDescription] = useState(initialData?.description || "")
-  const [priority,    setPriority]    = useState<TaskPriority>(initialData?.priority || "medium")
-  const [status,      setStatus]      = useState<TaskStatus>(initialData?.status || "todo")
-  const [dueDate,     setDueDate]     = useState(
-    initialData?.dueDate
-      ? extractDate(initialData.dueDate)
-      : format(new Date(), "yyyy-MM-dd")
-  )
-  const [dueTime,     setDueTime]     = useState(
-    initialData?.dueDate
-      ? extractTime(initialData.dueDate)
-      : "23:59"
-  )
-  const [subject, setSubject] = useState<string>(
-    initialData?.subject && subjectNames.includes(initialData.subject)
-      ? initialData.subject
-      : subjectNames[0] ?? ""
-  )
-  
-  // State untuk dialog tambah mata kuliah
-  const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false)
-  const [newSubjectName, setNewSubjectName] = useState("")
-  const [newSubjectHasPracticum, setNewSubjectHasPracticum] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-
-  // Import hooks untuk tambah mata kuliah
-  const addSubjectMutation = useAddSubject()
-  
-  // Stable callback reference to prevent TimePicker's useEffect from
-  // re-running on every render (it depends on onChange in its dep array)
-  const handleDueTimeChange = useCallback((time: string) => {
-    setDueTime(time)
-  }, [])
-  
-  // Handler untuk tambah mata kuliah baru
-  const handleAddSubject = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newSubjectName.trim()) return
-    
-    addSubjectMutation.mutate(
-      { name: newSubjectName.trim(), hasPracticum: newSubjectHasPracticum },
-      {
-        onSuccess: () => {
-          // Set subject yang baru ditambahkan sebagai selected
-          const newSubjectDisplayName = newSubjectHasPracticum 
-            ? `${newSubjectName.trim()} (Praktikum)` 
-            : newSubjectName.trim()
-          setSubject(newSubjectDisplayName)
-          
-          // Reset form dan tutup dialog
-          setNewSubjectName("")
-          setNewSubjectHasPracticum(false)
-          setIsAddSubjectOpen(false)
-          
-          toast.success("Mata kuliah berhasil ditambahkan!")
-        },
-        onError: (err: Error) => {
-          toast.error(err.message || "Gagal menambahkan mata kuliah")
-        },
-      }
-    )
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    setErrors({})
-
-    // Combine date and time into ISO datetime string
-    const dueDatetime = combineDateTimeISO(dueDate, dueTime)
-
-    try {
-      taskSchema.parse({
-        title: title.trim(),
-        description: description.trim() || "",
-        subject,
-        priority,
-        dueDate,
-        dueTime
-      })
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const newErrors: Record<string, string> = {}
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            newErrors[err.path[0].toString()] = err.message
-          }
-        })
-        setErrors(newErrors)
-        toast.error("Mohon periksa kembali isian form")
-        return
-      }
-    }
-
-    if (initialData) {
-      onEdit?.({
-        title:       title.trim(),
-        description: description.trim() || undefined,
-        priority,
-        dueDate:     dueDatetime,
-        subject,
-        status,
-      })
-    } else {
-      onAdd?.({
-        title:       title.trim(),
-        description: description.trim() || undefined,
-        priority,
-        dueDate:     dueDatetime,
-        subject,
-      })
-    }
-  }
-
+function TrashTaskCard({ task, onRestore, onPermanentDelete }: any) {
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="task-title">Judul Tugas</Label>
-        <Input
-          id="task-title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Masukkan judul tugas"
-          required
-          disabled={isLoading}
-          className={errors.title ? "border-destructive focus-visible:ring-destructive" : ""}
-        />
-        {errors.title && <p className="text-xs font-medium text-destructive">{errors.title}</p>}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="task-description">Deskripsi (Opsional)</Label>
-        <Textarea
-          id="task-description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Tambahkan deskripsi"
-          rows={3}
-          disabled={isLoading}
-          className={errors.description ? "border-destructive focus-visible:ring-destructive" : ""}
-        />
-        {errors.description && <p className="text-xs font-medium text-destructive">{errors.description}</p>}
-      </div>
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="task-subject" className="text-sm font-medium">
-              Mata Kuliah
-            </Label>
-            <Button 
-              type="button" 
-              variant="link" 
-              size="sm" 
-              className="h-auto p-0 text-xs font-normal text-primary hover:text-primary/80"
-              onClick={() => setIsAddSubjectOpen(true)}
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" />
-              Tambah Mata Kuliah Baru
-            </Button>
-          </div>
-          <Select 
-            value={subject} 
-            onValueChange={setSubject} 
-            disabled={isLoading || subjects.length === 0}
-          >
-            <SelectTrigger id="task-subject" className="h-10">
-              <SelectValue placeholder={subjects.length === 0 ? "Belum ada mata kuliah - Tambah dulu" : "Pilih mata kuliah"} />
-            </SelectTrigger>
-            <SelectContent>
-              {subjects.length > 0 ? (
-                subjects.map((s) => (
-                  <SelectItem key={s.id} value={s.name}>
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>{s.displayName}</span>
-                      {s.isPracticum && (
-                        <Badge variant="secondary" className="h-4 px-1 text-[9px] font-medium">
-                          Praktikum
-                        </Badge>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))
-              ) : (
-                <SelectItem value="placeholder" disabled>
-                  <span className="text-muted-foreground">Belum ada mata kuliah</span>
-                </SelectItem>
-              )}
-            </SelectContent>
-          </Select>
-          {errors.subject && <p className="text-xs font-medium text-destructive">{errors.subject}</p>}
-          {subjects.length === 0 && !errors.subject && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <span>💡</span>
-              <span>Klik "Tambah Mata Kuliah Baru" untuk memulai</span>
-            </p>
-          )}
+    <Card className="opacity-75 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+      <CardContent className="p-4 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-medium truncate">{task.title}</p>
+          <p className="text-xs text-muted-foreground">{task.subject} • Dihapus {format(new Date(task.deletedAt || Date.now()), "d MMM", { locale: id })}</p>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="task-priority">Prioritas</Label>
-          <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)} disabled={isLoading}>
-            <SelectTrigger id="task-priority">
-              <SelectValue placeholder="Pilih prioritas" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="low">Rendah</SelectItem>
-              <SelectItem value="medium">Sedang</SelectItem>
-              <SelectItem value="high">Tinggi</SelectItem>
-            </SelectContent>
-          </Select>
-          {errors.priority && <p className="text-xs font-medium text-destructive">{errors.priority}</p>}
-        </div>
-      </div>
-
-      {/* Dialog Tambah Mata Kuliah - Redesigned */}
-      <Dialog open={isAddSubjectOpen} onOpenChange={setIsAddSubjectOpen}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <BookOpen className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg">Tambah Mata Kuliah</DialogTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Tambahkan mata kuliah yang kamu ambil semester ini
-                </p>
-              </div>
-            </div>
-          </DialogHeader>
-          
-          <form onSubmit={handleAddSubject} className="space-y-5 pt-2">
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="new-subject" className="text-sm font-medium">
-                  Nama Mata Kuliah <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="new-subject"
-                  value={newSubjectName}
-                  onChange={(e) => setNewSubjectName(e.target.value)}
-                  placeholder="Contoh: Pemrograman Web, Basis Data, dll"
-                  required
-                  disabled={addSubjectMutation.isPending}
-                  className="h-10"
-                  autoFocus
-                />
-              </div>
-              
-              <div className="rounded-lg border bg-muted/30 p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="new-practicum" className="text-sm font-medium cursor-pointer">
-                        Memiliki Praktikum
-                      </Label>
-                      {newSubjectHasPracticum && (
-                        <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-medium">
-                          Praktikum
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Aktifkan jika mata kuliah ini memiliki sesi praktikum terpisah
-                    </p>
-                  </div>
-                  <Switch
-                    id="new-practicum"
-                    checked={newSubjectHasPracticum}
-                    onCheckedChange={setNewSubjectHasPracticum}
-                    disabled={addSubjectMutation.isPending}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            <div className="flex gap-3">
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="flex-1 h-10"
-                onClick={() => {
-                  setIsAddSubjectOpen(false)
-                  setNewSubjectName("")
-                  setNewSubjectHasPracticum(false)
-                }}
-                disabled={addSubjectMutation.isPending}
-              >
-                Batal
-              </Button>
-              <Button 
-                type="submit" 
-                className="flex-1 h-10 gap-2"
-                disabled={addSubjectMutation.isPending || !newSubjectName.trim()}
-              >
-                {addSubjectMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Menambahkan...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="h-4 w-4" />
-                    Tambah Mata Kuliah
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="task-dueDate">Tanggal Deadline</Label>
-          <Input
-            id="task-dueDate"
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            disabled={isLoading}
-            className={errors.dueDate ? "border-destructive focus-visible:ring-destructive" : ""}
-          />
-          {errors.dueDate && <p className="text-xs font-medium text-destructive">{errors.dueDate}</p>}
-        </div>
-        <div className="space-y-2">
-          <TimePicker
-            id="task-dueTime"
-            label="Waktu Deadline"
-            value={dueTime}
-            onChange={handleDueTimeChange}
-            disabled={isLoading}
-          />
-          {errors.dueTime && <p className="text-xs font-medium text-destructive">{errors.dueTime}</p>}
-        </div>
-      </div>
-      {initialData && (
-        <div className="space-y-2">
-          <Label htmlFor="task-status">Status</Label>
-          <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)} disabled={isLoading}>
-            <SelectTrigger id="task-status">
-              <SelectValue placeholder="Pilih status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todo">To Do</SelectItem>
-              <SelectItem value="done">Selesai</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-      <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {initialData ? "Simpan Perubahan" : "Tambah Tugas"}
-      </Button>
-    </form>
-  )
-}
-
-
-// ── TrashTaskCard Component ────────────────────────────────────
-function TrashTaskCard({
-  task,
-  onRestore,
-  onPermanentDelete,
-}: {
-  task: Task
-  onRestore: () => void
-  onPermanentDelete: () => void
-}) {
-  const dueDate = new Date(task.dueDate)
-  const deletedDate = task.deletedAt ? new Date(task.deletedAt) : null
-
-  const priorityColors: Record<TaskPriority, string> = {
-    high:   "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-    medium: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-    low:    "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  }
-  const priorityLabels: Record<TaskPriority, string> = {
-    high: "Tinggi", medium: "Sedang", low: "Rendah",
-  }
-
-  return (
-    <Card className="opacity-60">
-      <CardContent className="flex items-start gap-3 p-4">
-        <Trash2 className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <p className="font-medium line-through text-muted-foreground">
-                {task.title}
-              </p>
-              {task.description && (
-                <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                  {task.description}
-                </p>
-              )}
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  {task.subject}
-                </Badge>
-                <Badge className={`text-xs ${priorityColors[task.priority]}`}>
-                  {priorityLabels[task.priority]}
-                </Badge>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {format(dueDate, "d MMM yyyy", { locale: id })}
-                </span>
-                {deletedDate && (
-                  <span className="text-xs text-muted-foreground">
-                    • Dihapus {format(deletedDate, "d MMM yyyy", { locale: id })}
-                  </span>
-                )}
-              </div>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onRestore} className="gap-2">
-                  <RotateCcw className="h-4 w-4" /> Kembalikan
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={onPermanentDelete}
-                  className="gap-2 text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" /> Hapus Permanen
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="icon" onClick={onRestore} title="Kembalikan"><RotateCcw className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" onClick={onPermanentDelete} className="text-destructive" title="Hapus Permanen"><Trash2 className="h-4 w-4" /></Button>
         </div>
       </CardContent>
     </Card>
+  )
+}
+
+function EmptyView({ icon, title, description }: any) {
+  return (
+    <Card className="border-dashed"><CardContent className="py-12 flex flex-col items-center text-center">
+      <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4 text-muted-foreground">{icon}</div>
+      <h3 className="font-semibold">{title}</h3>
+      <p className="text-sm text-muted-foreground max-w-[250px]">{description}</p>
+    </CardContent></Card>
   )
 }

@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useMemo } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +15,7 @@ import {
   AlertCircle,
   TrendingUp,
   BookOpen,
+  Plus,
 } from "lucide-react"
 import { format, isToday, isTomorrow, isPast, differenceInDays } from "date-fns"
 import { id as localeId } from "date-fns/locale"
@@ -22,8 +24,10 @@ import { cn } from "@/lib/utils"
 
 // ── Feature hooks ─────────────────────────────────────────────
 import { useDashboardSummary, useWeeklyTaskStats, useSubjectTaskStats } from "@/features/stats"
-import { useUpcomingTasks } from "@/features/tasks"
-import { useGetHabits } from "@/features/habits"
+import { useUpcomingTasks, useCreateTask } from "@/features/tasks"
+import { useGetHabits, useToggleHabit } from "@/features/habits"
+import { useGetSubjects } from "@/features/subjects"
+import { useRateLimit } from "@/hooks/use-rate-limit"
 
 // ── Recharts ──────────────────────────────────────────────────
 import {
@@ -34,9 +38,11 @@ import {
   Tooltip,
 } from "recharts"
 
-// ── Onboarding ────────────────────────────────────────────────
+// ── Components ───────────────────────────────────────────────
 import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
 import { useOnboarding } from "@/hooks/use-onboarding"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { TaskForm } from "@/components/tasks/task-form"
 
 export default function DashboardPage() {
   // ── Onboarding state ──────────────────────────────────────
@@ -45,17 +51,46 @@ export default function DashboardPage() {
     isLoading: onboardingLoading,
     completeOnboarding,
   } = useOnboarding()
-  // ── Data fetching — semua parallel ───────────────────────
+  
+  // ── Data fetching ───────────────────────────────────────
   const { data: summary,   isLoading: loadingSummary }   = useDashboardSummary()
   const { data: weekly,    isLoading: loadingWeekly }    = useWeeklyTaskStats()
   const { data: subjects,  isLoading: loadingSubjects }  = useSubjectTaskStats()
   const { data: upcoming,  isLoading: loadingUpcoming }  = useUpcomingTasks(5)
   const { data: habits = [], isLoading: loadingHabits }  = useGetHabits()
+  const { data: rawSubjects = [] } = useGetSubjects()
+  
+  const toggleHabitMutation = useToggleHabit()
+  const createTask = useCreateTask()
+  const { guard: guardCreate } = useRateLimit("task-create", { cooldownMs: 2000 })
+  
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
-  const today = new Date().toISOString().split("T")[0]
+  const expandedSubjects = useMemo(() => {
+    const result: Array<{ id: string; name: string; displayName: string; isPracticum: boolean }> = []
+    rawSubjects.forEach((subject) => {
+      result.push({ id: subject.id, name: subject.name, displayName: subject.name, isPracticum: false })
+      if (subject.hasPracticum) {
+        result.push({ id: `${subject.id}-practicum`, name: `${subject.name} (Praktikum)`, displayName: `${subject.name} (Praktikum)`, isPracticum: true })
+      }
+    })
+    return result
+  }, [rawSubjects])
+
+  const handleCreate = (data: any) => {
+    guardCreate(() => {
+      createTask.mutate(data, {
+        onSuccess: () => {
+          setIsAddDialogOpen(false)
+          toast.success("Tugas berhasil ditambahkan!")
+        },
+        onError: (err) => toast.error(err.message),
+      })
+    })
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative pb-20">
       {/* Onboarding Modal */}
       {!onboardingLoading && (
         <OnboardingModal
@@ -124,11 +159,8 @@ export default function DashboardPage() {
 
       {/* ─── Main Row: Weekly Chart + Habits ─────────────── */}
       <div className="grid gap-6 lg:grid-cols-7">
-        {/* Weekly Progress Bar Chart */}
         <Card className="lg:col-span-4 relative overflow-hidden transition-all duration-300 hover:shadow-xl">
-          {/* Gradient Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent" />
-          
           <CardHeader className="relative">
             <CardTitle className="flex items-center gap-2 text-base font-semibold">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10">
@@ -141,28 +173,19 @@ export default function DashboardPage() {
             {loadingWeekly ? (
               <div className="flex items-end gap-2 h-32">
                 {Array.from({ length: 7 }).map((_, i) => (
-                  <Skeleton 
-                    key={i} 
-                    className="flex-1 rounded" 
-                    style={{ height: `${40 + (i * 8)}%` }} 
-                  />
+                  <Skeleton key={i} className="flex-1 rounded" style={{ height: `${40 + (i * 8)}%` }} />
                 ))}
               </div>
             ) : weekly && weekly.length > 0 ? (
               <WeeklyChart data={weekly} />
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Belum ada data minggu ini.
-              </p>
+              <p className="text-sm text-muted-foreground text-center py-8">Belum ada data minggu ini.</p>
             )}
           </CardContent>
         </Card>
 
-        {/* Habits Hari Ini */}
         <Card className="lg:col-span-3 relative overflow-hidden transition-all duration-300 hover:shadow-xl">
-          {/* Gradient Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-transparent" />
-          
           <CardHeader className="relative flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-xl font-semibold">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-orange-500/10">
@@ -176,11 +199,11 @@ export default function DashboardPage() {
               </Button>
             </Link>
           </CardHeader>
-          <CardContent className="space-y-3 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted-foreground/20">
+          <CardContent className="space-y-3 max-h-[300px] overflow-y-auto pr-2 scrollbar-thin">
             {loadingHabits ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <Skeleton className="h-10 w-10 rounded-full" />
                   <div className="flex-1 space-y-1">
                     <Skeleton className="h-3 w-3/4" />
                     <Skeleton className="h-3 w-1/2" />
@@ -192,54 +215,47 @@ export default function DashboardPage() {
                 <div 
                   key={habit.id} 
                   className={cn(
-                    "flex items-center gap-3 p-2 rounded-lg transition-all duration-200",
-                    "hover:bg-orange-500/5 hover:scale-[1.02]"
+                    "flex items-center gap-3 p-2 rounded-lg transition-all group",
+                    "hover:bg-orange-500/5"
                   )}
                 >
-                  <div
+                  <button
+                    onClick={() => toggleHabitMutation.mutate(habit.id)}
+                    disabled={toggleHabitMutation.isPending}
                     className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-full transition-all",
+                      "flex h-10 w-10 items-center justify-center rounded-full transition-all shrink-0",
                       habit.isCompletedToday
                         ? "bg-gradient-to-br from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30"
-                        : "bg-muted text-muted-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-orange-500/20 hover:text-orange-600"
                     )}
                   >
                     {habit.isCompletedToday ? (
                       <CheckCircle2 className="h-5 w-5" />
                     ) : (
-                      <Flame className="h-5 w-5" />
+                      <Plus className="h-5 w-5" />
                     )}
-                  </div>
+                  </button>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{habit.title}</p>
+                    <p className={cn("text-sm font-medium truncate", habit.isCompletedToday && "text-muted-foreground line-through")}>
+                      {habit.title}
+                    </p>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Flame className="h-3 w-3 text-orange-500" />
                       {habit.currentStreak} hari streak
                     </p>
                   </div>
-                  {habit.isCompletedToday && (
-                    <Badge variant="secondary" className="text-xs shrink-0 bg-green-500/10 text-green-600 border-green-500/20">
-                      Done
-                    </Badge>
-                  )}
                 </div>
               ))
             ) : (
-              <p className="text-center text-sm text-muted-foreground py-4">
-                Belum ada habit. Tambah habit pertamamu!
-              </p>
+              <p className="text-center text-sm text-muted-foreground py-4">Belum ada habit.</p>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* ─── Bottom Row: Upcoming Tasks + Subject Stats ─── */}
       <div className="grid gap-6 lg:grid-cols-7">
-        {/* Upcoming Tasks */}
         <Card className="lg:col-span-4 relative overflow-hidden transition-all duration-300 hover:shadow-xl">
-          {/* Gradient Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-transparent" />
-          
           <CardHeader className="relative flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-xl font-semibold">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-500/10">
@@ -259,29 +275,18 @@ export default function DashboardPage() {
                 Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="flex items-center gap-3 p-3">
                     <Skeleton className="h-2 w-2 rounded-full" />
-                    <div className="flex-1 space-y-1">
-                      <Skeleton className="h-3 w-3/4" />
-                      <Skeleton className="h-3 w-1/2" />
-                    </div>
-                    <Skeleton className="h-5 w-14 rounded-full" />
+                    <div className="flex-1 space-y-1"><Skeleton className="h-3 w-3/4" /><Skeleton className="h-3 w-1/2" /></div>
                   </div>
                 ))
               ) : upcoming && upcoming.length > 0 ? (
                 upcoming.map((task) => (
-                  <div
-                    key={task.id}
-                    className={cn(
-                      "flex items-center justify-between rounded-lg border p-3 transition-all duration-200",
-                      "hover:shadow-md hover:scale-[1.01] hover:border-primary/50"
-                    )}
-                  >
+                  <div key={task.id} className="flex items-center justify-between rounded-lg border p-3 hover:shadow-md transition-all">
                     <div className="flex items-center gap-3 min-w-0">
                       <PriorityDot priority={task.priority} />
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{task.title}</p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
-                          <BookOpen className="h-3 w-3" />
-                          {task.subject}
+                          <BookOpen className="h-3 w-3" /> {task.subject}
                         </p>
                       </div>
                     </div>
@@ -289,19 +294,14 @@ export default function DashboardPage() {
                   </div>
                 ))
               ) : (
-                <p className="text-center text-sm text-muted-foreground py-4">
-                  Tidak ada tugas pending. Bagus! 🎉
-                </p>
+                <p className="text-center text-sm text-muted-foreground py-4">Tidak ada tugas pending. 🎉</p>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Subject Breakdown */}
         <Card className="lg:col-span-3 relative overflow-hidden transition-all duration-300 hover:shadow-xl">
-          {/* Gradient Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent" />
-          
           <CardHeader className="relative">
             <CardTitle className="flex items-center gap-2 text-xl font-semibold">
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-500/10">
@@ -314,10 +314,7 @@ export default function DashboardPage() {
             {loadingSubjects ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="space-y-1">
-                    <Skeleton className="h-3 w-2/3" />
-                    <Skeleton className="h-2 w-full rounded-full" />
-                  </div>
+                  <div key={i} className="space-y-1"><Skeleton className="h-3 w-2/3" /><Skeleton className="h-2 w-full rounded-full" /></div>
                 ))}
               </div>
             ) : subjects && subjects.length > 0 ? (
@@ -325,101 +322,70 @@ export default function DashboardPage() {
                 {subjects.slice(0, 5).map((s) => (
                   <div key={s.subject} className="space-y-2 group">
                     <div className="flex justify-between text-sm">
-                      <span className="font-medium truncate group-hover:text-primary transition-colors">
-                        {s.subject}
-                      </span>
-                      <span className="text-muted-foreground ml-2 shrink-0 font-medium">
-                        {s.completed}/{s.total}
-                      </span>
+                      <span className="font-medium truncate">{s.subject}</span>
+                      <span className="text-muted-foreground font-medium">{s.completed}/{s.total}</span>
                     </div>
                     <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                       <div
                         className={cn(
                           "h-full rounded-full transition-all duration-500",
-                          s.completionRate >= 80 
-                            ? "bg-gradient-to-r from-green-500 to-emerald-500" 
-                            : s.completionRate >= 50
-                            ? "bg-gradient-to-r from-blue-500 to-cyan-500"
-                            : "bg-gradient-to-r from-orange-500 to-red-500"
+                          s.completionRate >= 80 ? "bg-green-500" : s.completionRate >= 50 ? "bg-blue-500" : "bg-orange-500"
                         )}
                         style={{ width: `${s.completionRate}%` }}
                       />
                     </div>
-                    {s.overdue > 0 && (
-                      <p className="text-xs font-medium text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {s.overdue} overdue
-                      </p>
-                    )}
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-center text-sm text-muted-foreground py-4">
-                Belum ada tugas. Tambah tugas pertamamu!
-              </p>
+              <p className="text-center text-sm text-muted-foreground py-4">Belum ada tugas.</p>
             )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Quick Add FAB */}
+      <Button
+        onClick={() => setIsAddDialogOpen(true)}
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl z-40 transition-transform hover:scale-110 active:scale-95"
+        size="icon"
+      >
+        <Plus className="h-6 w-6" />
+      </Button>
+
+      {/* Add Task Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Tambah Tugas Baru</DialogTitle>
+          </DialogHeader>
+          <TaskForm 
+            subjects={expandedSubjects} 
+            isLoading={createTask.isPending} 
+            onAdd={handleCreate} 
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-// ── Sub-components ────────────────────────────────────────────
-
-function StatCard({
-  title,
-  value,
-  subtitle,
-  icon,
-  alert = false,
-  isLoading = false,
-}: {
-  title:     string
-  value:     string
-  subtitle:  string
-  icon:      React.ReactNode
-  alert?:    boolean
-  isLoading?: boolean
-}) {
+function StatCard({ title, value, subtitle, icon, alert = false, isLoading = false }: any) {
   return (
-    <Card className={cn(
-      "relative overflow-hidden transition-all duration-300",
-      "hover:shadow-lg hover:-translate-y-1",
-      alert && "border-destructive/50"
-    )}>
-      {/* Gradient Background for Alert Cards */}
-      {alert && (
-        <div className="absolute inset-0 bg-gradient-to-br from-destructive/5 to-transparent" />
-      )}
-      
-      <CardContent className="relative p-3 sm:p-5">
+    <Card className={cn("relative overflow-hidden transition-all hover:shadow-lg", alert && "border-destructive/50")}>
+      <CardContent className="p-4 sm:p-5">
         <div className="flex items-center justify-between">
           <span className="text-xs sm:text-sm font-medium text-muted-foreground truncate">{title}</span>
-          <div className={cn(
-            "flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-lg transition-colors shrink-0",
-            alert 
-              ? "bg-destructive/10 text-destructive" 
-              : "bg-primary/10 text-primary"
-          )}>
-            {alert ? <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5" /> : icon}
+          <div className={cn("flex items-center justify-center w-8 h-8 rounded-lg", alert ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
+            {alert ? <AlertCircle className="h-4 w-4" /> : icon}
           </div>
         </div>
         {isLoading ? (
-          <>
-            <Skeleton className="mt-2 h-6 sm:h-8 w-16 sm:w-20" />
-            <Skeleton className="mt-1 h-2 sm:h-3 w-20 sm:w-28" />
-          </>
+          <Skeleton className="mt-2 h-8 w-20" />
         ) : (
           <>
-            <p className="mt-2 sm:mt-3 text-2xl sm:text-3xl font-bold tracking-tight">{value}</p>
-            <p className={cn(
-              "mt-1 sm:mt-1.5 text-[10px] sm:text-xs font-medium line-clamp-1",
-              alert ? "text-destructive" : "text-muted-foreground"
-            )}>
-              {subtitle}
-            </p>
+            <p className="mt-2 text-2xl font-bold tracking-tight">{value}</p>
+            <p className={cn("mt-1 text-[10px] sm:text-xs font-medium", alert ? "text-destructive" : "text-muted-foreground")}>{subtitle}</p>
           </>
         )}
       </CardContent>
@@ -427,45 +393,27 @@ function StatCard({
   )
 }
 
-// ── Weekly Bar Chart ──────────────────────────────────────────
-import type { DailyTaskStat } from "@/features/stats"
-
 function WeeklyChart({ data }: { data: DailyTaskStat[] }) {
-  if (!data || data.length === 0) return null
-
   return (
     <div className="h-40 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>
-          <XAxis
-            dataKey="dayLabel"
-            stroke="var(--muted-foreground)"
-            fontSize={12}
-            tickLine={false}
-            axisLine={false}
-          />
+          <XAxis dataKey="dayLabel" stroke="var(--muted-foreground)" fontSize={12} tickLine={false} axisLine={false} />
           <Tooltip
             content={({ active, payload }) => {
-              if (active && payload && payload.length) {
+              if (active && payload?.length) {
                 const dayData = payload[0].payload
                 return (
                   <div className="rounded-lg border bg-background p-2 shadow-sm">
                     <p className="text-sm font-medium">{dayData.date}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Selesai: {dayData.completed} tugas
-                    </p>
+                    <p className="text-xs text-muted-foreground">Selesai: {dayData.completed} tugas</p>
                   </div>
                 )
               }
               return null
             }}
           />
-          <Bar
-            dataKey="completed"
-            fill="var(--chart-1)"
-            radius={[4, 4, 0, 0]}
-            maxBarSize={40}
-          />
+          <Bar dataKey="completed" fill="var(--chart-1)" radius={[4, 4, 0, 0]} maxBarSize={40} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -473,27 +421,34 @@ function WeeklyChart({ data }: { data: DailyTaskStat[] }) {
 }
 
 function PriorityDot({ priority }: { priority: string }) {
-  const colors: Record<string, string> = {
-    high:   "bg-red-500",
-    medium: "bg-yellow-500",
-    low:    "bg-green-500",
-  }
-  return (
-    <div className={`h-2 w-2 shrink-0 rounded-full ${colors[priority] ?? "bg-muted"}`} />
-  )
+  const colors: Record<string, string> = { high: "bg-red-500", medium: "bg-yellow-500", low: "bg-green-500" }
+  return <div className={`h-2 w-2 shrink-0 rounded-full ${colors[priority] ?? "bg-muted"}`} />
 }
 
 function DeadlineBadge({ dueDate }: { dueDate: string }) {
-  const date     = new Date(dueDate)
+  const date = new Date(dueDate)
   const isOverdue = isPast(date) && !isToday(date)
+  const diff = differenceInDays(date, new Date())
+  
+  let variant: "default" | "secondary" | "destructive" | "outline" = "secondary"
+  let className = "text-xs shrink-0"
+  
+  if (isOverdue) variant = "destructive"
+  else if (isToday(date) || (diff >= 0 && diff < 1)) {
+    variant = "destructive"
+    className += " animate-pulse"
+  } else if (diff >= 1 && diff <= 3) {
+    className += " bg-orange-500 text-white hover:bg-orange-600"
+  } else {
+    className += " bg-green-500/10 text-green-600 border-green-500/20"
+  }
+
   let text = format(date, "d MMM", { locale: localeId })
-  if (isToday(date))    text = "Hari ini"
+  if (isToday(date)) text = "Hari ini"
   if (isTomorrow(date)) text = "Besok"
+  
   return (
-    <Badge
-      variant={isOverdue ? "destructive" : "secondary"}
-      className="text-xs shrink-0"
-    >
+    <Badge variant={variant} className={className}>
       {isOverdue ? "Overdue" : text}
     </Badge>
   )
