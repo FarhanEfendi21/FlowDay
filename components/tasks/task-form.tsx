@@ -245,7 +245,7 @@ export function TaskForm({
             <SelectTrigger id="task-subject" className="h-10">
               <SelectValue placeholder={subjects.length === 0 ? "Tambah dulu" : "Pilih mata kuliah"} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" sideOffset={4}>
               {subjects.length > 0 ? (
                 subjects.map((s) => (
                   <SelectItem key={s.id} value={s.name}>
@@ -276,7 +276,7 @@ export function TaskForm({
             <SelectTrigger id="task-priority">
               <SelectValue placeholder="Pilih prioritas" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" sideOffset={4}>
               <SelectItem value="low">Rendah</SelectItem>
               <SelectItem value="medium">Sedang</SelectItem>
               <SelectItem value="high">Tinggi</SelectItem>
@@ -318,7 +318,7 @@ export function TaskForm({
             <SelectTrigger id="task-status">
               <SelectValue placeholder="Pilih status" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" sideOffset={4}>
               <SelectItem value="todo">To Do</SelectItem>
               <SelectItem value="done">Selesai</SelectItem>
             </SelectContent>

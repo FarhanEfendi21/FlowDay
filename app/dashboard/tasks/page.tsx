@@ -336,9 +336,11 @@ export default function TasksPage() {
                     <span className="hidden sm:inline ml-2">Tambah Tugas</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+                <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh]">
                   <DialogHeader><DialogTitle>Tambah Tugas Baru</DialogTitle></DialogHeader>
-                  <TaskForm subjects={expandedSubjects} isLoading={createTask.isPending} onAdd={handleCreate} />
+                  <div className="overflow-y-auto max-h-[calc(90vh-8rem)] pr-2">
+                    <TaskForm subjects={expandedSubjects} isLoading={createTask.isPending} onAdd={handleCreate} />
+                  </div>
                 </DialogContent>
               </Dialog>
             </>
@@ -479,9 +481,11 @@ export default function TasksPage() {
 
       {/* Edit & Delete Dialogs */}
       <Dialog open={!!editingTask} onOpenChange={(open) => !open && setEditingTask(null)}>
-        <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh]">
           <DialogHeader><DialogTitle>Edit Tugas</DialogTitle></DialogHeader>
-          {editingTask && <TaskForm subjects={expandedSubjects} initialData={editingTask} isLoading={updateTask.isPending} onEdit={handleUpdate} />}
+          <div className="overflow-y-auto max-h-[calc(90vh-8rem)] pr-2">
+            {editingTask && <TaskForm subjects={expandedSubjects} initialData={editingTask} isLoading={updateTask.isPending} onEdit={handleUpdate} />}
+          </div>
         </DialogContent>
       </Dialog>
 
