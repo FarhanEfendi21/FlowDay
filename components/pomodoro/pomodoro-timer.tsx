@@ -593,28 +593,6 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
               </Button>
             )}
           </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 border-t">
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold">{completedWorkSessions}</div>
-              <div className="text-[10px] sm:text-xs text-muted-foreground">Sesi Hari Ini</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold">{getDuration(type)}</div>
-              <div className="text-[10px] sm:text-xs text-muted-foreground">Menit</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold">{getDuration(type)}</div>
-              <div className="text-[10px] sm:text-xs text-muted-foreground">Menit</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl sm:text-2xl font-bold">
-                {Math.floor((completedWorkSessions * (settings?.workDuration || 25)) / 60)}h
-              </div>
-              <div className="text-[10px] sm:text-xs text-muted-foreground">Total Fokus</div>
-            </div>
-          </div>
         </div>
       </DialogContent>
     </Dialog>

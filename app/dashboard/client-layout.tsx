@@ -356,7 +356,7 @@ export default function DashboardLayout({
                 handleLogout()
               }}
               disabled={isLoggingOut}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-white hover:bg-destructive/90 dark:text-destructive-foreground"
             >
               {isLoggingOut ? 'Keluar...' : 'Ya, Logout'}
             </AlertDialogAction>
