@@ -4,9 +4,9 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { cn, generateAvatarGradient } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { UserAvatar } from "@/components/ui/user-avatar"
 import { Logo } from "@/components/logo"
 import { PillNav } from "@/components/ui/pill-nav"
 import { StaggeredMenu } from "@/components/ui/StaggeredMenu"
@@ -72,6 +72,16 @@ export default function DashboardLayout({
     setMounted(true)
   }, [])
 
+  // Ensure existing users have avatar_seed (migration)
+  useEffect(() => {
+    if (user && !user.user_metadata?.avatar_seed) {
+      // Import dynamically to avoid SSR issues
+      import('@/lib/utils/avatar-seed').then(({ ensureAvatarSeed }) => {
+        ensureAvatarSeed().catch(console.error)
+      })
+    }
+  }, [user])
+
   // Close mobile sidebar on route change (e.g. hardware back button or link click)
   useEffect(() => {
     setSidebarOpen(false)
@@ -81,6 +91,7 @@ export default function DashboardLayout({
   const userName = user?.user_metadata?.name || user?.email?.split("@")[0] || "User"
   const userEmail = user?.email || ""
   const userInitial = userName.charAt(0).toUpperCase()
+  const avatarSeed = user?.user_metadata?.avatar_seed || null
 
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false)
@@ -143,11 +154,12 @@ export default function DashboardLayout({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-foreground text-background text-sm">
-                      {userInitial}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar 
+                    name={userName || "User"} 
+                    seed={avatarSeed}
+                    size={32}
+                    className="h-8 w-8"
+                  />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
@@ -221,14 +233,12 @@ export default function DashboardLayout({
           {/* User section */}
           <div className="border-t border-border p-4">
             <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-              <Avatar className="h-9 w-9">
-                <AvatarFallback 
-                  className="text-white text-sm border shadow-sm"
-                  style={{ background: generateAvatarGradient(userName || "") }}
-                >
-                  {userInitial}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar 
+                name={userName || "User"} 
+                seed={avatarSeed}
+                size={36}
+                className="h-9 w-9"
+              />
               <div className="flex-1 truncate">
                 <p className="text-sm font-medium">{userName}</p>
                 <p className="truncate text-xs text-muted-foreground">
@@ -278,14 +288,12 @@ export default function DashboardLayout({
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback 
-                        className="text-white text-sm border shadow-sm"
-                        style={{ background: generateAvatarGradient(userName || "") }}
-                      >
-                        {userInitial}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar 
+                      name={userName || "User"} 
+                      seed={avatarSeed}
+                      size={32}
+                      className="h-8 w-8"
+                    />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">

@@ -683,6 +683,46 @@ export default function HabitsPage() {
           )}
         </>
       )}
+
+      {/* AlertDialog for Soft Delete Confirmation */}
+      <AlertDialog open={!!softDeleteTarget} onOpenChange={(open) => !open && setSoftDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="text-orange-500" /> Hapus Habit?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Habit "{softDeleteTarget?.title}" akan dipindahkan ke trash. Kamu masih bisa memulihkannya nanti.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmSoftDelete} className="bg-orange-500 hover:bg-orange-600">
+              Pindahkan ke Trash
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog for Permanent Delete Confirmation */}
+      <AlertDialog open={!!permanentDeleteTarget} onOpenChange={(open) => !open && setPermanentDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="text-destructive" /> Hapus Permanen?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini tidak dapat dibatalkan. Habit akan dihapus selamanya beserta semua data streak dan log-nya.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPermanentDelete} className="bg-destructive text-white hover:bg-destructive/90">
+              Hapus Permanen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -60,20 +60,63 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
   const [completedWorkSessions, setCompletedWorkSessions] = useState(0)
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const completionAudioRef = useRef<HTMLAudioElement | null>(null)
+  const tickingAudioRef = useRef<HTMLAudioElement | null>(null)
 
   // ── Refetch settings when dialog opens ────────────────────
   useEffect(() => {
     if (open) {
       refetchSettings()
+    } else {
+      // Stop ticking sound when dialog closes
+      if (tickingAudioRef.current) {
+        tickingAudioRef.current.pause()
+        tickingAudioRef.current.currentTime = 0
+      }
     }
   }, [open, refetchSettings])
 
-  // ── Initialize audio ───────────────────────────────────────
+  // ── Initialize audio files ────────────────────────────────
   useEffect(() => {
     if (typeof window !== "undefined") {
-      audioRef.current = new Audio("/sounds/timer-complete.mp3")
-      audioRef.current.volume = 0.5
+      // Completion sound (when timer finishes)
+      const completionAudio = new Audio("/sounds/completion.mp3")
+      completionAudio.volume = 0.6
+      completionAudio.load()
+      
+      completionAudio.addEventListener('error', (e) => {
+        console.warn("Completion sound file not found or invalid, will use fallback beep", e)
+      })
+      
+      completionAudio.addEventListener('canplaythrough', () => {
+        console.log("✅ Completion sound loaded successfully")
+      })
+      
+      completionAudioRef.current = completionAudio
+
+      // Ticking sound (while timer is running)
+      const tickingAudio = new Audio("/sounds/timer.mp3")
+      tickingAudio.volume = 0.3 // Lower volume for background ticking
+      tickingAudio.loop = true // Loop the ticking sound
+      tickingAudio.load()
+      
+      tickingAudio.addEventListener('error', (e) => {
+        console.warn("Ticking sound file not found or invalid", e)
+      })
+      
+      tickingAudio.addEventListener('canplaythrough', () => {
+        console.log("✅ Ticking sound loaded successfully")
+      })
+      
+      tickingAudioRef.current = tickingAudio
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (tickingAudioRef.current) {
+        tickingAudioRef.current.pause()
+        tickingAudioRef.current.currentTime = 0
+      }
     }
   }, [])
 
@@ -134,6 +177,29 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
     }
   }, [isRunning, remainingSeconds])
 
+  // ── Control ticking sound based on timer state ────────────
+  useEffect(() => {
+    const tickingAudio = tickingAudioRef.current
+    if (!tickingAudio || !settings?.soundEnabled) return
+
+    if (isRunning && remainingSeconds > 0) {
+      // Play ticking sound when timer is running
+      tickingAudio.play().catch((err) => {
+        console.warn("Failed to play ticking sound:", err)
+      })
+    } else {
+      // Stop ticking sound when timer is paused or finished
+      tickingAudio.pause()
+      tickingAudio.currentTime = 0
+    }
+
+    // Cleanup: stop ticking when component unmounts or dialog closes
+    return () => {
+      tickingAudio.pause()
+      tickingAudio.currentTime = 0
+    }
+  }, [isRunning, remainingSeconds, settings?.soundEnabled])
+
   // ── Start timer ────────────────────────────────────────────
   const handleStart = async () => {
     if (!sessionId) {
@@ -184,18 +250,64 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
     setRemainingSeconds(getDuration(type) * 60)
   }
 
+  // ── Play completion sound ──────────────────────────────────
+  const playCompletionSound = async () => {
+    if (!settings?.soundEnabled) {
+      console.log("Sound disabled in settings")
+      return
+    }
+    
+    // Stop ticking sound first
+    if (tickingAudioRef.current) {
+      tickingAudioRef.current.pause()
+      tickingAudioRef.current.currentTime = 0
+    }
+    
+    try {
+      // Try to play the completion audio file
+      if (completionAudioRef.current) {
+        // Reset audio to start
+        completionAudioRef.current.currentTime = 0
+        await completionAudioRef.current.play()
+        console.log("✅ Played timer completion sound from completion.mp3")
+      }
+    } catch (error) {
+      console.warn("⚠️ Failed to play completion audio file, using fallback beep:", error)
+      // Fallback: Use Web Audio API to create a pleasant beep sound
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+        const oscillator = audioContext.createOscillator()
+        const gainNode = audioContext.createGain()
+        
+        oscillator.connect(gainNode)
+        gainNode.connect(audioContext.destination)
+        
+        // Pleasant notification tone (C note, 523.25 Hz)
+        oscillator.frequency.value = 523.25
+        oscillator.type = 'sine'
+        
+        // Fade in and out for smooth sound
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime)
+        gainNode.gain.linearRampToValueAtTime(0.4, audioContext.currentTime + 0.1)
+        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.6)
+        
+        oscillator.start(audioContext.currentTime)
+        oscillator.stop(audioContext.currentTime + 0.6)
+        
+        console.log("✅ Played fallback beep sound (completion.mp3 not available)")
+      } catch (beepError) {
+        console.error("❌ Failed to play fallback beep:", beepError)
+        toast.error("Gagal memutar suara notifikasi")
+      }
+    }
+  }
+
   // ── Timer complete ─────────────────────────────────────────
   const handleTimerComplete = async () => {
     setIsRunning(false)
     
-    // Play sound
-    if (settings?.soundEnabled && audioRef.current) {
-      try {
-        await audioRef.current.play()
-      } catch (error) {
-        console.error("Failed to play sound:", error)
-      }
-    }
+    // Play sound first for immediate feedback
+    await playCompletionSound()
 
     // Update session
     if (sessionId) {

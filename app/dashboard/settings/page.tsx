@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { UserAvatar } from "@/components/ui/user-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -56,6 +56,7 @@ export default function SettingsPage() {
   const userName = user?.user_metadata?.name || user?.email?.split("@")[0] || ""
   const userEmail = user?.email || ""
   const userInitial = userName.charAt(0).toUpperCase()
+  const avatarSeed = user?.user_metadata?.avatar_seed || null
 
   const handleSaveProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -113,11 +114,12 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
-              <AvatarFallback className="bg-foreground text-background text-xl">
-                {userInitial}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar 
+              name={userName || "User"} 
+              seed={avatarSeed}
+              size={64}
+              className="h-16 w-16"
+            />
             <div>
               <p className="font-medium">{userName}</p>
               <p className="text-sm text-muted-foreground">{userEmail}</p>

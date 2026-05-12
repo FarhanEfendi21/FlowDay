@@ -62,12 +62,19 @@ export async function signUp(input: SignUpInput): Promise<void> {
     throw new AuthError(parsed.error.errors[0].message)
   }
 
+  // Generate a unique avatar seed for this user
+  // Using timestamp + random to ensure uniqueness
+  const avatarSeed = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+
   const supabase = createClient()
   const { data, error } = await supabase.auth.signUp({
     email:    parsed.data.email,
     password: parsed.data.password,
     options: {
-      data: { name: parsed.data.name },
+      data: { 
+        name: parsed.data.name,
+        avatar_seed: avatarSeed, // Store unique seed for consistent avatar
+      },
       // Disable auto-confirm to force email verification
       emailRedirectTo: `${window.location.origin}/auth/callback`,
     },
