@@ -245,29 +245,33 @@ export default function HabitsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          {/* Trash/Active Toggle Button */}
           <Button
             variant={showTrash ? "outline" : "secondary"}
-            className="gap-2"
+            size="default"
             onClick={() => setShowTrash(!showTrash)}
+            title={showTrash ? "Lihat Habits" : `Trash (${deletedHabits.length})`}
           >
             {showTrash ? (
               <>
                 <Flame className="h-4 w-4" />
-                Lihat Habits
+                <span className="hidden sm:inline ml-2">Habits</span>
               </>
             ) : (
               <>
                 <Archive className="h-4 w-4" />
-                Lihat Trash ({deletedHabits.length})
+                <span className="hidden sm:inline ml-2">Trash</span>
+                <span className="ml-1">({deletedHabits.length})</span>
               </>
             )}
           </Button>
+          
           {!showTrash && (
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2">
+                <Button size="default">
                   <Plus className="h-4 w-4" />
-                  Tambah Habit
+                  <span className="hidden sm:inline ml-2">Tambah Habit</span>
                 </Button>
               </DialogTrigger>
               <DialogContent>

@@ -332,19 +332,20 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
-        <div className={cn("p-6 border-b", config.bgColor, config.borderColor)}>
+      <DialogContent className="w-[95vw] max-w-[500px] max-h-[90vh] overflow-y-auto p-0">
+        {/* Header with colored background */}
+        <div className={cn("p-4 sm:p-6 border-b", config.bgColor, config.borderColor)}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Icon className={cn("h-5 w-5", config.color)} />
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5", config.color)} />
               Pomodoro Timer
             </DialogTitle>
           </DialogHeader>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Type Selector */}
-          <div className="flex gap-2">
+          <div className="flex gap-1.5 sm:gap-2">
             {(["work", "short_break", "long_break"] as PomodoroType[]).map((t) => (
               <Button
                 key={t}
@@ -357,9 +358,12 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
                   }
                 }}
                 disabled={isRunning}
-                className="flex-1"
+                className="flex-1 text-xs sm:text-sm px-2 sm:px-4"
               >
-                {typeConfig[t].label}
+                <span className="hidden sm:inline">{typeConfig[t].label}</span>
+                <span className="sm:hidden">
+                  {t === "work" ? "Fokus" : t === "short_break" ? "Pendek" : "Panjang"}
+                </span>
               </Button>
             ))}
           </div>
@@ -367,7 +371,7 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
           {/* Timer Display */}
           <div className="relative">
             <div className={cn(
-              "rounded-2xl p-8 text-center space-y-4 border-2",
+              "rounded-2xl p-6 sm:p-8 text-center space-y-3 sm:space-y-4 border-2",
               config.bgColor,
               config.borderColor
             )}>
@@ -380,7 +384,7 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
                 initial={{ scale: 1 }}
                 animate={{ scale: isRunning ? [1, 1.02, 1] : 1 }}
                 transition={{ duration: 1, repeat: isRunning ? Infinity : 0 }}
-                className="text-6xl font-bold tabular-nums"
+                className="text-5xl sm:text-6xl font-bold tabular-nums"
               >
                 {formatTime(remainingSeconds)}
               </motion.div>
@@ -441,7 +445,7 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
                 size="lg"
               >
                 <Play className="h-4 w-4" />
-                {sessionId ? "Lanjutkan" : "Mulai"}
+                <span className="hidden xs:inline">{sessionId ? "Lanjutkan" : "Mulai"}</span>
               </Button>
             ) : (
               <Button
@@ -451,7 +455,7 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
                 size="lg"
               >
                 <Pause className="h-4 w-4" />
-                Jeda
+                <span className="hidden xs:inline">Jeda</span>
               </Button>
             )}
             
@@ -459,6 +463,8 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
               onClick={handleReset}
               variant="outline"
               size="lg"
+              title="Reset"
+              className="px-3"
             >
               <RotateCcw className="h-4 w-4" />
             </Button>
@@ -468,6 +474,8 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
                 onClick={handleSkip}
                 variant="ghost"
                 size="lg"
+                title="Skip"
+                className="px-3"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -475,20 +483,24 @@ export function PomodoroTimer({ open, onOpenChange, tasks = [], initialTaskId }:
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 border-t">
             <div className="text-center">
-              <div className="text-2xl font-bold">{completedWorkSessions}</div>
-              <div className="text-xs text-muted-foreground">Sesi Hari Ini</div>
+              <div className="text-xl sm:text-2xl font-bold">{completedWorkSessions}</div>
+              <div className="text-[10px] sm:text-xs text-muted-foreground">Sesi Hari Ini</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">{getDuration(type)}</div>
-              <div className="text-xs text-muted-foreground">Menit</div>
+              <div className="text-xl sm:text-2xl font-bold">{getDuration(type)}</div>
+              <div className="text-[10px] sm:text-xs text-muted-foreground">Menit</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold">
+              <div className="text-xl sm:text-2xl font-bold">{getDuration(type)}</div>
+              <div className="text-[10px] sm:text-xs text-muted-foreground">Menit</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl sm:text-2xl font-bold">
                 {Math.floor((completedWorkSessions * (settings?.workDuration || 25)) / 60)}h
               </div>
-              <div className="text-xs text-muted-foreground">Total Fokus</div>
+              <div className="text-[10px] sm:text-xs text-muted-foreground">Total Fokus</div>
             </div>
           </div>
         </div>

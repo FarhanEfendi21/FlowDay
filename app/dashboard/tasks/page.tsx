@@ -291,33 +291,49 @@ export default function TasksPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          {/* Trash/Active Toggle Button */}
           <Button
             variant={showTrash ? "outline" : "secondary"}
-            className="gap-2"
+            size="default"
             onClick={() => {
               setShowTrash(!showTrash)
               setSelectedTaskIds(new Set())
             }}
+            title={showTrash ? "Lihat Tugas Aktif" : `Trash (${deletedTasks.length})`}
           >
             {showTrash ? (
-              <><CheckSquare className="h-4 w-4" /> Lihat Tugas Aktif</>
+              <>
+                <CheckSquare className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Tugas Aktif</span>
+              </>
             ) : (
-              <><Archive className="h-4 w-4" /> Trash ({deletedTasks.length})</>
+              <>
+                <Archive className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Trash</span>
+                <span className="ml-1">({deletedTasks.length})</span>
+              </>
             )}
           </Button>
+          
           {!showTrash && (
             <>
+              {/* Pomodoro Button - Icon only on mobile */}
               <Button
                 variant="outline"
-                className="gap-2"
+                size="default"
                 onClick={() => setPomodoroOpen(true)}
+                title="Pomodoro Timer"
               >
-                <Timer className="h-4 w-4" /> Pomodoro
+                <Timer className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Pomodoro</span>
               </Button>
+              
+              {/* Add Task Button */}
               <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button className="gap-2">
-                    <Plus className="h-4 w-4" /> Tambah Tugas
+                  <Button size="default">
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden sm:inline ml-2">Tambah Tugas</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
