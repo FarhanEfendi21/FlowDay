@@ -72,12 +72,14 @@ import {
   CheckCircle2,
   X,
   RotateCcw,
+  Timer,
 } from "lucide-react"
 import { format, isPast } from "date-fns"
 import { id } from "date-fns/locale"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { TaskForm } from "@/components/tasks/task-form"
+import { PomodoroTimer } from "@/components/pomodoro/pomodoro-timer"
 
 export default function TasksPage() {
   const [filterSubject, setFilterSubject] = useState<string>("all")
@@ -87,6 +89,7 @@ export default function TasksPage() {
   const [editingTask, setEditingTask]     = useState<Task | null>(null)
   const [showTrash, setShowTrash]         = useState(false)
   const [permanentDeleteTarget, setPermanentDeleteTarget] = useState<string | null>(null)
+  const [pomodoroOpen, setPomodoroOpen]   = useState(false)
 
   // ── Bulk Selection State ──────────────────────────────────
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set())
@@ -303,17 +306,26 @@ export default function TasksPage() {
             )}
           </Button>
           {!showTrash && (
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" /> Tambah Tugas
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-                <DialogHeader><DialogTitle>Tambah Tugas Baru</DialogTitle></DialogHeader>
-                <TaskForm subjects={expandedSubjects} isLoading={createTask.isPending} onAdd={handleCreate} />
-              </DialogContent>
-            </Dialog>
+            <>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setPomodoroOpen(true)}
+              >
+                <Timer className="h-4 w-4" /> Pomodoro
+              </Button>
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2">
+                    <Plus className="h-4 w-4" /> Tambah Tugas
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+                  <DialogHeader><DialogTitle>Tambah Tugas Baru</DialogTitle></DialogHeader>
+                  <TaskForm subjects={expandedSubjects} isLoading={createTask.isPending} onAdd={handleCreate} />
+                </DialogContent>
+              </Dialog>
+            </>
           )}
         </div>
       </div>
@@ -469,6 +481,13 @@ export default function TasksPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Pomodoro Timer */}
+      <PomodoroTimer
+        open={pomodoroOpen}
+        onOpenChange={setPomodoroOpen}
+        tasks={todoTasks}
+      />
     </div>
   )
 }

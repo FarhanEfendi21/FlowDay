@@ -23,6 +23,7 @@ import {
   Clock,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { PomodoroStatsCard } from "@/components/pomodoro/pomodoro-stats-card"
 
 // ── Supabase hooks — semua data user-specific via p_user_id ───
 import {
@@ -259,6 +260,9 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Pomodoro Stats */}
+      <PomodoroStatsCard />
 
       {/* Tasks by Subject (dari Supabase RPC get_subject_task_stats) */}
       <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-xl">

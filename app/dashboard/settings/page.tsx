@@ -21,12 +21,15 @@ import {
   LogOut,
   RotateCcw,
   Bell,
+  Timer,
 } from "lucide-react"
 import { useAuth, signOut, clearClientCache } from "@/features/auth"
 import { createClient } from "@/lib/supabase/client"
 import { useOnboarding } from "@/hooks/use-onboarding"
 import { useFCM } from "@/features/notifications/hooks/useFCM"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+import { PomodoroSettingsModal } from "@/components/pomodoro/pomodoro-settings-modal"
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
@@ -40,6 +43,9 @@ export default function SettingsPage() {
   const { permission, isSupported, requestPermission } = useFCM()
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
+  
+  // ── Pomodoro Settings Modal ────────────────────────────────
+  const [pomodoroModalOpen, setPomodoroModalOpen] = useState(false)
 
   // Prevent hydration mismatch
   useEffect(() => {
@@ -233,6 +239,36 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Pomodoro Settings Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Timer className="h-5 w-5 text-muted-foreground" />
+            <CardTitle className="text-base font-medium">Pomodoro Timer</CardTitle>
+          </div>
+          <CardDescription>Kustomisasi durasi dan perilaku timer Pomodoro</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Pengaturan Timer</p>
+              <p className="text-sm text-muted-foreground">
+                Atur durasi fokus, istirahat, dan perilaku auto-start
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setPomodoroModalOpen(true)}
+            >
+              <Timer className="h-4 w-4" />
+              Atur
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Subjects Section */}
       <Card>
         <CardHeader>
@@ -343,6 +379,12 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pomodoro Settings Modal */}
+      <PomodoroSettingsModal
+        open={pomodoroModalOpen}
+        onOpenChange={setPomodoroModalOpen}
+      />
     </div>
   )
 }
