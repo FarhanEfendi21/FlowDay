@@ -3,12 +3,10 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { UserAvatar } from "@/components/ui/user-avatar"
 import { Logo } from "@/components/logo"
-import { PillNav } from "@/components/ui/pill-nav"
 import { StaggeredMenu } from "@/components/ui/StaggeredMenu"
 import {
   DropdownMenu,
@@ -35,8 +33,6 @@ import {
   Settings,
   Moon,
   Sun,
-  Menu,
-  X,
   LogOut,
   User,
 } from "lucide-react"
@@ -63,7 +59,6 @@ export default function DashboardLayout({
   const pathname = usePathname()
 
   const { theme, setTheme } = useTheme()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const { user } = useAuth()
 
@@ -82,26 +77,13 @@ export default function DashboardLayout({
     }
   }, [user])
 
-  // Close mobile sidebar on route change (e.g. hardware back button or link click)
-  useEffect(() => {
-    setSidebarOpen(false)
-  }, [pathname])
-
   // Derive display values from real Supabase user data
   const userName = user?.user_metadata?.name || user?.email?.split("@")[0] || "User"
   const userEmail = user?.email || ""
-  const userInitial = userName.charAt(0).toUpperCase()
   const avatarSeed = user?.user_metadata?.avatar_seed || null
 
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false)
-
-  // PillNav items
-  const pillNavItems = navigation.map(item => ({
-    label: item.name,
-    href: item.href,
-    ariaLabel: item.name
-  }))
 
   const handleLogout = async () => {
     if (isLoggingOut) return   // prevent double-click
@@ -124,43 +106,80 @@ export default function DashboardLayout({
       {/* PWA: Offline indicator banner */}
       <OfflineIndicator />
 
-      {/* Desktop: PillNav with actions (≥1024px) */}
-      <div className="hidden lg:block sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
-        <div className="pill-nav-wrapper">
-          <PillNav
-            logo={mounted && theme === "dark" ? "/icons/white-logo.png" : "/icons/black-logo.png"}
-            logoAlt="FlowDay Logo"
-            items={pillNavItems}
-            activeHref={pathname}
-            baseColor="hsl(var(--background))"
-            pillColor="hsl(var(--foreground))"
-            hoveredPillTextColor="hsl(var(--background))"
-            pillTextColor="hsl(var(--background))"
-            initialLoadAnimation={true}
-          />
-          <div className="flex items-center gap-2">
-            <NotificationBell />
-            {mounted && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              >
-                <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                <span className="sr-only">Toggle theme</span>
-              </Button>
-            )}
+      {/* Sidebar - Persistent on tablet and desktop (md and above) */}
+      <aside
+        className={cn(
+          "fixed top-0 left-0 z-40 h-full w-64 border-r border-border bg-background transition-transform",
+          "hidden md:block" // Visible on tablet and desktop
+        )}
+      >
+        <div className="flex h-full flex-col">
+          {/* Logo */}
+          <div className="flex h-16 items-center justify-between border-b border-border px-6">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <Logo size={32} showText={true} />
+            </Link>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 space-y-1 p-4">
+            {navigation.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <div key={item.name}>
+                  <Link
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    {item.name}
+                  </Link>
+                </div>
+              )
+            })}
+          </nav>
+
+          {/* Bottom actions */}
+          <div className="border-t border-border p-4 space-y-3">
+            {/* Theme toggle and notifications */}
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              {mounted && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className="flex-1"
+                >
+                  <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                  <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                  <span className="sr-only">Toggle theme</span>
+                </Button>
+              )}
+            </div>
+
+            {/* User section */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
+                <button className="flex w-full items-center gap-3 rounded-lg bg-muted/50 p-3 hover:bg-muted transition-colors">
                   <UserAvatar 
                     name={userName || "User"} 
                     seed={avatarSeed}
-                    size={32}
-                    className="h-8 w-8"
+                    size={36}
+                    className="h-9 w-9"
                   />
-                </Button>
+                  <div className="flex-1 truncate text-left">
+                    <p className="text-sm font-medium">{userName}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {userEmail}
+                    </p>
+                  </div>
+                </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem asChild>
@@ -178,7 +197,7 @@ export default function DashboardLayout({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={(e) => {
-                    e.preventDefault() // prevent dropdown from immediately closing when opening dialog sometimes
+                    e.preventDefault()
                     setIsLogoutDialogOpen(true)
                   }}
                   className="flex items-center gap-2 text-destructive cursor-pointer"
@@ -190,68 +209,10 @@ export default function DashboardLayout({
             </DropdownMenu>
           </div>
         </div>
-      </div>
-
-      {/* Sidebar - Hidden on mobile, persistent on tablet (md), hidden on lg (desktop uses PillNav) */}
-      <aside
-        className={cn(
-          "fixed top-0 left-0 z-40 h-full w-64 border-r border-border bg-background transition-transform",
-          "hidden md:block lg:hidden" // Only visible on tablet
-        )}
-      >
-        <div className="flex h-full flex-col">
-          {/* Logo */}
-          <div className="flex h-16 items-center justify-between border-b border-border px-6">
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <Logo size={32} showText={false} />
-            </Link>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1 p-4">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <div key={item.name}>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-muted text-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    {item.name}
-                  </Link>
-                </div>
-              )
-            })}
-          </nav>
-
-          {/* User section */}
-          <div className="border-t border-border p-4">
-            <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-              <UserAvatar 
-                name={userName || "User"} 
-                seed={avatarSeed}
-                size={36}
-                className="h-9 w-9"
-              />
-              <div className="flex-1 truncate">
-                <p className="text-sm font-medium">{userName}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {userEmail}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
       </aside>
 
       {/* Main content */}
-      <div className="md:pl-64 lg:pl-0 pb-16 md:pb-0">
+      <div className="md:pl-64 pb-16 md:pb-0">
         {/* Mobile Navigation & Header (Replaces topbar and bottom nav) */}
         <StaggeredMenu
           className="md:hidden"

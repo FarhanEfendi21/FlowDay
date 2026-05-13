@@ -238,10 +238,10 @@ export default function HabitsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">
-            {showTrash ? "Trash - Habits" : "Habits"}
+            {showTrash ? "Tempat Sampah" : "Habits"}
           </h1>
           <p className="text-muted-foreground">
-            {showTrash ? "Habit yang dihapus" : "Bangun kebiasaan produktif dan pantau streakmu"}
+            {showTrash ? "Habit yang baru saja dihapus" : "Bangun kebiasaan produktif dan pantau streakmu"}
           </p>
         </div>
         <div className="flex gap-2">
@@ -250,12 +250,12 @@ export default function HabitsPage() {
             variant={showTrash ? "outline" : "secondary"}
             size="default"
             onClick={() => setShowTrash(!showTrash)}
-            title={showTrash ? "Lihat Habits" : `Trash (${deletedHabits.length})`}
+            title={showTrash ? "Lihat Habits Aktif" : `Trash (${deletedHabits.length})`}
           >
             {showTrash ? (
               <>
-                <Flame className="h-4 w-4" />
-                <span className="hidden sm:inline ml-2">Habits</span>
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">Habits Aktif</span>
               </>
             ) : (
               <>
@@ -314,71 +314,61 @@ export default function HabitsPage() {
 
       {/* TRASH VIEW */}
       {showTrash && (
-        <>
-          {isLoadingDeleted && (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              Memuat trash...
+        <div className="space-y-4">
+          {isLoadingDeleted ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="animate-spin" />
             </div>
-          )}
-          {!isLoadingDeleted && filteredDeletedHabits.length === 0 && (
-            <Empty>
-              <EmptyMedia variant="icon"><Archive /></EmptyMedia>
-              <EmptyTitle>{deletedHabits.length === 0 ? "Trash kosong" : "Tidak ada hasil"}</EmptyTitle>
-              <EmptyDescription>
-                {deletedHabits.length === 0 
-                  ? "Tidak ada habit yang dihapus." 
-                  : `Tidak ada habit yang dihapus sesuai pencarian "${searchQuery}"`}
-              </EmptyDescription>
-            </Empty>
-          )}
-          {!isLoadingDeleted && filteredDeletedHabits.length > 0 && (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          ) : filteredDeletedHabits.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="py-12 flex flex-col items-center text-center">
+                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4 text-muted-foreground">
+                  <Trash2 className="h-6 w-6" />
+                </div>
+                <h3 className="font-semibold">Trash Kosong</h3>
+                <p className="text-sm text-muted-foreground max-w-[250px]">
+                  {deletedHabits.length === 0 
+                    ? "Tidak ada habit di tempat sampah." 
+                    : `Tidak ada habit yang dihapus sesuai pencarian "${searchQuery}"`}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-2">
               {filteredDeletedHabits.map((habit) => (
-                <Card key={habit.id} className="border-destructive/50">
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                          <Flame className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{habit.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {habit.currentStreak} hari streak
-                          </p>
-                        </div>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => handleRestore(habit.id)}
-                            className="gap-2"
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                            Pulihkan
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handlePermanentDelete(habit.id)}
-                            className="gap-2 text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Hapus Permanen
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                <Card key={habit.id} className="opacity-75 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+                  <CardContent className="p-4 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{habit.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {habit.currentStreak} hari streak • Dihapus {format(new Date(habit.deletedAt || Date.now()), "d MMM", { locale: id })}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleRestore(habit.id)} 
+                        title="Kembalikan"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handlePermanentDelete(habit.id)} 
+                        className="text-destructive" 
+                        title="Hapus Permanen"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* ACTIVE HABITS VIEW */}
@@ -481,7 +471,6 @@ export default function HabitsPage() {
                               </div>
                             ))}
                           </div>
-                          <div className="w-10 shrink-0" />
                         </div>
 
                         {/* Habit Rows */}
@@ -514,24 +503,6 @@ export default function HabitsPage() {
                                 )
                               })}
                             </div>
-                            <div className="w-10 shrink-0 flex justify-end">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() => handleDelete(habit.id, habit.title)}
-                                    className="gap-2 text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    Hapus
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
                           </div>
                         ))}
                       </div>
@@ -540,34 +511,16 @@ export default function HabitsPage() {
                       <div className="sm:hidden space-y-3">
                         {filteredHabits.map((habit) => (
                           <div key={habit.id} className="rounded-lg border p-3 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
-                                  <Flame className="h-4 w-4 text-orange-500" />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="truncate text-sm font-medium">{habit.title}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {habit.currentStreak}d streak
-                                  </p>
-                                </div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
+                                <Flame className="h-4 w-4 text-orange-500" />
                               </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() => handleDelete(habit.id, habit.title)}
-                                    className="gap-2 text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                    Hapus
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium">{habit.title}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {habit.currentStreak}d streak
+                                </p>
+                              </div>
                             </div>
                             <div className="flex gap-2">
                               {last2Days.map((day) => {

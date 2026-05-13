@@ -80,6 +80,12 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { TaskForm } from "@/components/tasks/task-form"
 import { PomodoroTimer } from "@/components/pomodoro/pomodoro-timer"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export default function TasksPage() {
   const [filterSubject, setFilterSubject] = useState<string>("all")
@@ -522,10 +528,51 @@ function TaskCard({ task, selected, onSelect, onToggle, onEdit, onDelete }: any)
       isOverdue && !selected && "border-l-destructive bg-destructive/5"
     )}>
       <CardContent className="p-3 sm:p-4 flex items-start gap-3">
-        <div className="flex items-center gap-2 mt-1">
-          <Checkbox checked={selected} onCheckedChange={onSelect} />
-          <Checkbox checked={task.status === "done"} onCheckedChange={onToggle} />
-        </div>
+        <TooltipProvider>
+          <div className="flex items-center gap-2 mt-1">
+            {/* Checkbox for bulk selection */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <Checkbox 
+                    checked={selected} 
+                    onCheckedChange={onSelect}
+                    className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Pilih untuk aksi bulk</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            {/* Button for marking task as done/undone */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onToggle}
+                  className={cn(
+                    "h-6 w-6 rounded-full transition-all",
+                    task.status === "done" 
+                      ? "text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950" 
+                      : "text-muted-foreground hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
+                  )}
+                >
+                  {task.status === "done" ? (
+                    <CheckCircle2 className="h-5 w-5 fill-current" />
+                  ) : (
+                    <CheckCircle2 className="h-5 w-5" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{task.status === "done" ? "Tandai belum selesai" : "Tandai selesai"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start gap-2">
             <div>
