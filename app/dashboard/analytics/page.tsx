@@ -1,9 +1,10 @@
 "use client"
 
-import { useMemo } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
 import {
   Bar,
   BarChart,
@@ -21,6 +22,8 @@ import {
   BookOpen,
   Target,
   Clock,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { PomodoroStatsCard } from "@/components/pomodoro/pomodoro-stats-card"
@@ -41,6 +44,16 @@ export default function AnalyticsPage() {
   const { data: subjects, isLoading: loadingSubjects } = useSubjectTaskStats()
   const { data: habitStats, isLoading: loadingHabits } = useHabitStats()
   const { data: tasks = [], isLoading: loadingTasks  } = useGetTasks()
+  
+  const [subjectPage, setSubjectPage] = useState(1)
+  const SUBJECTS_PER_PAGE = 5
+  
+  const totalSubjectPages = Math.ceil((subjects?.length || 0) / SUBJECTS_PER_PAGE)
+  const paginatedSubjects = useMemo(() => {
+    if (!subjects) return []
+    const start = (subjectPage - 1) * SUBJECTS_PER_PAGE
+    return subjects.slice(start, start + SUBJECTS_PER_PAGE)
+  }, [subjects, subjectPage])
 
   // ── Priority breakdown (kalkulasi client-side dari tasks DB) ──
   const priorityStats = useMemo(() => ({
@@ -268,12 +281,40 @@ export default function AnalyticsPage() {
       <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-xl">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent" />
         <CardHeader className="relative">
-          <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-500/10">
-              <BookOpen className="h-4 w-4 text-purple-500" />
-            </div>
-            Tugas per Mata Kuliah
-          </CardTitle>
+          <div className="flex items-center justify-between w-full">
+            <CardTitle className="flex items-center gap-2 text-xl font-semibold">
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-500/10">
+                <BookOpen className="h-4 w-4 text-purple-500" />
+              </div>
+              Tugas per Mata Kuliah
+            </CardTitle>
+            
+            {subjects && subjects.length > SUBJECTS_PER_PAGE && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setSubjectPage(p => Math.max(1, p - 1))}
+                  disabled={subjectPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-xs font-medium min-w-[2.5rem] text-center">
+                  {subjectPage} / {totalSubjectPages}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setSubjectPage(p => Math.min(totalSubjectPages, p + 1))}
+                  disabled={subjectPage === totalSubjectPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {loadingSubjects ? (
@@ -287,7 +328,7 @@ export default function AnalyticsPage() {
             </div>
           ) : subjects && subjects.length > 0 ? (
             <div className="space-y-4">
-              {subjects.map((subject) => (
+              {paginatedSubjects.map((subject) => (
                 <div key={subject.subject} className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
@@ -305,10 +346,15 @@ export default function AnalyticsPage() {
                       </span>
                     </div>
                   </div>
-                  <Progress
-                    value={subject.completionRate}
-                    className="h-2"
-                  />
+                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all duration-500",
+                        subject.completionRate >= 80 ? "bg-green-500" : subject.completionRate >= 50 ? "bg-blue-500" : "bg-orange-500"
+                      )}
+                      style={{ width: `${subject.completionRate}%` }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
