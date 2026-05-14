@@ -16,6 +16,8 @@ import {
   TrendingUp,
   BookOpen,
   Plus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { format, isToday, isTomorrow, isPast, differenceInDays } from "date-fns"
 import { id as localeId } from "date-fns/locale"
@@ -65,6 +67,15 @@ export default function DashboardPage() {
   const { guard: guardCreate } = useRateLimit("task-create", { cooldownMs: 2000 })
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  const [subjectPage, setSubjectPage] = useState(1)
+  const SUBJECTS_PER_PAGE = 5
+  
+  const totalSubjectPages = Math.ceil((subjects?.length || 0) / SUBJECTS_PER_PAGE)
+  const paginatedSubjects = useMemo(() => {
+    if (!subjects) return []
+    const start = (subjectPage - 1) * SUBJECTS_PER_PAGE
+    return subjects.slice(start, start + SUBJECTS_PER_PAGE)
+  }, [subjects, subjectPage])
 
   const expandedSubjects = useMemo(() => {
     const result: Array<{ id: string; name: string; displayName: string; isPracticum: boolean }> = []
@@ -303,12 +314,40 @@ export default function DashboardPage() {
         <Card className="lg:col-span-3 relative overflow-hidden transition-all duration-300 hover:shadow-xl">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-transparent" />
           <CardHeader className="relative">
-            <CardTitle className="flex items-center gap-2 text-xl font-semibold">
-              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-500/10">
-                <BookOpen className="h-4 w-4 text-purple-500" />
-              </div>
-              Per Mata Kuliah
-            </CardTitle>
+            <div className="flex items-center justify-between w-full">
+              <CardTitle className="flex items-center gap-2 text-xl font-semibold">
+                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-500/10">
+                  <BookOpen className="h-4 w-4 text-purple-500" />
+                </div>
+                Per Mata Kuliah
+              </CardTitle>
+              
+              {subjects && subjects.length > SUBJECTS_PER_PAGE && (
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setSubjectPage(p => Math.max(1, p - 1))}
+                    disabled={subjectPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs font-medium min-w-[2.5rem] text-center">
+                    {subjectPage} / {totalSubjectPages}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setSubjectPage(p => Math.min(totalSubjectPages, p + 1))}
+                    disabled={subjectPage === totalSubjectPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="relative">
             {loadingSubjects ? (
@@ -319,7 +358,7 @@ export default function DashboardPage() {
               </div>
             ) : subjects && subjects.length > 0 ? (
               <div className="space-y-4">
-                {subjects.slice(0, 5).map((s) => (
+                {paginatedSubjects.map((s) => (
                   <div key={s.subject} className="space-y-2 group">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium truncate">{s.subject}</span>

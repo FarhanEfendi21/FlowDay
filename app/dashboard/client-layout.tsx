@@ -147,14 +147,13 @@ export default function DashboardLayout({
           {/* Bottom actions */}
           <div className="border-t border-border p-4 space-y-3">
             {/* Theme toggle and notifications */}
-            <div className="flex items-center gap-2">
-              <NotificationBell />
+            <div className="grid grid-cols-2 gap-2">
+              <NotificationBell className="w-full h-10" />
               {mounted && (
                 <Button
                   variant="ghost"
-                  size="icon"
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                  className="flex-1"
+                  className="w-full h-10"
                 >
                   <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                   <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -183,7 +182,7 @@ export default function DashboardLayout({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem asChild>
-                  <Link href="/dashboard/settings" className="flex items-center gap-2">
+                  <Link href="/dashboard/profile" className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     Profil Saya
                   </Link>
@@ -259,7 +258,7 @@ export default function DashboardLayout({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem asChild>
-                    <Link href="/dashboard/settings" className="flex items-center gap-2">
+                    <Link href="/dashboard/profile" className="flex items-center gap-2">
                       <User className="h-4 w-4" />
                       Profil Saya
                     </Link>
