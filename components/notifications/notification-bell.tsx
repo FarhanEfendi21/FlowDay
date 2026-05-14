@@ -15,7 +15,7 @@ import { NotificationList } from "./notification-list"
 
 import { cn } from "@/lib/utils"
 
-export function NotificationBell() {
+export function NotificationBell({ className }: { className?: string }) {
   const [open, setOpen] = useState(false)
   const { data: unreadCount = 0 } = useUnreadCount()
 
@@ -25,7 +25,7 @@ export function NotificationBell() {
         <Button
           variant="ghost"
           size="icon"
-          className={cn("relative transition-all", unreadCount > 0 && "text-primary hover:bg-primary/10")}
+          className={cn("relative transition-all", unreadCount > 0 && "text-primary hover:bg-primary/10", className)}
           aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
         >
           <Bell className={cn("h-5 w-5", unreadCount > 0 && "fill-primary/20")} />
