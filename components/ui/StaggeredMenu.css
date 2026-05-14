@@ -191,10 +191,33 @@
 
 .sm-socials {
   margin-top: auto;
-  padding-top: 2rem;
+  padding-top: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.sm-github-section {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.sm-github-link {
+  color: var(--foreground);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.sm-github-link:hover {
+  color: var(--sm-accent, var(--primary));
+}
+
+.sm-github-link:active {
+  transform: scale(0.98);
 }
 
 .sm-socials-title {
