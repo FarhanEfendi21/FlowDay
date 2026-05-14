@@ -3,7 +3,11 @@
 import React, { useCallback, useLayoutEffect, useRef, useState, useEffect } from 'react';
 import { gsap } from 'gsap';
 import { cn } from '@/lib/utils';
+import * as LucideIcons from 'lucide-react';
 import './StaggeredMenu.css';
+
+// Safely get Github icon with fallbacks for different versions of lucide-react
+const Github = (LucideIcons as any).Github || (LucideIcons as any).GitHub || (LucideIcons as any).GithubIcon;
 
 export interface StaggeredMenuItem {
   label: string;
@@ -36,6 +40,7 @@ export interface StaggeredMenuProps {
   headerLeft?: React.ReactNode;
   headerRight?: React.ReactNode;
   currentPath?: string;
+  githubUrl?: string;
 }
 
 export const StaggeredMenu = ({
@@ -56,7 +61,8 @@ export const StaggeredMenu = ({
   onMenuClose,
   headerLeft,
   headerRight,
-  currentPath
+  currentPath,
+  githubUrl = "https://github.com/FarhanEfendi21/FlowDay.git"
 }: StaggeredMenuProps) => {
   const [open, setOpen] = useState(false);
   const openRef = useRef(false);
@@ -107,6 +113,7 @@ export const StaggeredMenu = ({
     const numberEls = Array.from(panel.querySelectorAll('.sm-panel-list[data-numbering] .sm-panel-item'));
     const socialTitle = panel.querySelector('.sm-socials-title');
     const socialLinks = Array.from(panel.querySelectorAll('.sm-socials-link'));
+    const githubLink = panel.querySelector('.sm-github-link');
 
     const offscreen = position === 'left' ? -100 : 100;
     const layerStates = layers.map((el) => ({ el, start: offscreen }));
@@ -123,6 +130,9 @@ export const StaggeredMenu = ({
     }
     if (socialLinks.length) {
       gsap.set(socialLinks, { y: 25, opacity: 0 });
+    }
+    if (githubLink) {
+      gsap.set(githubLink, { y: 20, opacity: 0 });
     }
 
     const tl = gsap.timeline({ paused: true });
@@ -168,8 +178,9 @@ export const StaggeredMenu = ({
       }
     }
 
+    const bottomElementsStart = panelInsertTime + panelDuration * 0.4;
+
     if (socialTitle || socialLinks.length) {
-      const socialsStart = panelInsertTime + panelDuration * 0.4;
       if (socialTitle) {
         tl.to(
           socialTitle,
@@ -178,7 +189,7 @@ export const StaggeredMenu = ({
             duration: 0.5,
             ease: 'power2.out'
           },
-          socialsStart
+          bottomElementsStart
         );
       }
       if (socialLinks.length) {
@@ -194,9 +205,22 @@ export const StaggeredMenu = ({
               gsap.set(socialLinks, { clearProps: 'opacity' });
             }
           },
-          socialsStart + 0.04
+          bottomElementsStart + 0.04
         );
       }
+    }
+
+    if (githubLink) {
+      tl.to(
+        githubLink,
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.6,
+          ease: 'power4.out'
+        },
+        bottomElementsStart + 0.15
+      );
     }
 
     openTlRef.current = tl;
@@ -247,6 +271,8 @@ export const StaggeredMenu = ({
         const socialLinks = Array.from(panel.querySelectorAll('.sm-socials-link'));
         if (socialTitle) gsap.set(socialTitle, { opacity: 0 });
         if (socialLinks.length) gsap.set(socialLinks, { y: 25, opacity: 0 });
+        const githubLink = panel.querySelector('.sm-github-link');
+        if (githubLink) gsap.set(githubLink, { y: 20, opacity: 0 });
         busyRef.current = false;
       }
     });
@@ -391,6 +417,18 @@ export const StaggeredMenu = ({
               </ul>
             </div>
           )}
+
+          <div className="sm-github-section mt-auto pt-4">
+            <a 
+              href={githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="sm-github-link flex items-center gap-2 text-sm font-medium opacity-60 hover:opacity-100 transition-all duration-300 hover:text-primary group"
+            >
+              {Github && <Github size={16} className="group-hover:scale-110 transition-transform" />}
+              <span>FlowDay Repository</span>
+            </a>
+          </div>
         </div>
       </aside>
     </div>
