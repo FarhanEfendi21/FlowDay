@@ -580,6 +580,17 @@ function TaskCard({ task, selected, onSelect, onToggle, onEdit, onDelete }: any)
               {task.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-1">{task.description}</p>}
               <div className="flex flex-wrap gap-2 mt-2">
                 <Badge variant="outline" className="text-[10px] uppercase tracking-wider">{task.subject}</Badge>
+                <Badge 
+                  variant="outline" 
+                  className={cn(
+                    "text-[10px] uppercase tracking-wider",
+                    task.priority === 'high' && "bg-red-500/10 text-red-600 border-red-500/20",
+                    task.priority === 'medium' && "bg-amber-500/10 text-amber-600 border-amber-500/20",
+                    task.priority === 'low' && "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                  )}
+                >
+                  {task.priority === 'high' ? 'Tinggi' : task.priority === 'medium' ? 'Sedang' : 'Rendah'}
+                </Badge>
                 <CountdownBadge deadline={task.dueDate} status={task.status} />
               </div>
             </div>
