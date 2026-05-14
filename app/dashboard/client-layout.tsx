@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { toggleThemeWithTransition } from "@/lib/theme-transition"
 import { Button } from "@/components/ui/button"
 import { UserAvatar } from "@/components/ui/user-avatar"
 import { Logo } from "@/components/logo"
@@ -152,7 +153,7 @@ export default function DashboardLayout({
               {mounted && (
                 <Button
                   variant="ghost"
-                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  onClick={(e) => toggleThemeWithTransition(theme === "dark" ? "light" : "dark", setTheme, e)}
                   className="w-full h-10"
                 >
                   <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

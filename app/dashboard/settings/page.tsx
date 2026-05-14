@@ -28,6 +28,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useOnboarding } from "@/hooks/use-onboarding"
 import { useFCM } from "@/features/notifications/hooks/useFCM"
 import { cn } from "@/lib/utils"
+import { toggleThemeWithTransition } from "@/lib/theme-transition"
 import { toast } from "sonner"
 import { PomodoroSettingsModal } from "@/components/pomodoro/pomodoro-settings-modal"
 import {
@@ -102,7 +103,7 @@ export default function SettingsPage() {
           <CardDescription>Informasi profil kamu</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <UserAvatar 
                 name={userName || "User"} 
@@ -110,12 +111,12 @@ export default function SettingsPage() {
                 size={64}
                 className="h-16 w-16"
               />
-              <div>
-                <p className="font-medium text-lg">{userName}</p>
-                <p className="text-sm text-muted-foreground">{userEmail}</p>
+              <div className="min-w-0">
+                <p className="font-medium text-lg truncate">{userName}</p>
+                <p className="text-sm text-muted-foreground truncate">{userEmail}</p>
               </div>
             </div>
-            <Button variant="outline" asChild>
+            <Button variant="outline" asChild className="w-full sm:w-auto">
               <Link href="/dashboard/profile" className="gap-2">
                 <User className="h-4 w-4" />
                 Ubah Profil
@@ -156,10 +157,13 @@ export default function SettingsPage() {
               </div>
             </div>
             {mounted && (
-              <Switch
-                checked={theme === "dark"}
-                onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
-              />
+              <div onClick={(e) => toggleThemeWithTransition(theme === "dark" ? "light" : "dark", setTheme, e)}>
+                <Switch
+                  checked={theme === "dark"}
+                  onCheckedChange={() => {}} // Handled by div for animation
+                  className="pointer-events-none" // Ensure clicks pass to the div
+                />
+              </div>
             )}
           </div>
         </CardContent>
