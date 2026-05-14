@@ -222,7 +222,7 @@ export function TaskForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between h-7">
             <Label htmlFor="task-subject" className="text-sm font-medium">
               Mata Kuliah
             </Label>
@@ -242,8 +242,11 @@ export function TaskForm({
             onValueChange={setSubject} 
             disabled={isLoading || subjects.length === 0}
           >
-            <SelectTrigger id="task-subject" className="h-10">
-              <SelectValue placeholder={subjects.length === 0 ? "Tambah dulu" : "Pilih mata kuliah"} />
+            <SelectTrigger id="task-subject" className="h-10 w-full overflow-hidden">
+              <SelectValue 
+                placeholder={subjects.length === 0 ? "Tambah dulu" : "Pilih mata kuliah"} 
+                className="truncate"
+              />
             </SelectTrigger>
             <SelectContent position="popper" sideOffset={4}>
               {subjects.length > 0 ? (
@@ -271,7 +274,9 @@ export function TaskForm({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="task-priority">Prioritas</Label>
+          <div className="flex items-center h-7">
+            <Label htmlFor="task-priority">Prioritas</Label>
+          </div>
           <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)} disabled={isLoading}>
             <SelectTrigger id="task-priority">
               <SelectValue placeholder="Pilih prioritas" />
