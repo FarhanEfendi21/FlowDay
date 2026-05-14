@@ -30,6 +30,17 @@ import { useFCM } from "@/features/notifications/hooks/useFCM"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { PomodoroSettingsModal } from "@/components/pomodoro/pomodoro-settings-modal"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import Link from "next/link"
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
@@ -41,11 +52,10 @@ export default function SettingsPage() {
   const { user } = useAuth()
   const { resetOnboarding } = useOnboarding()
   const { permission, isSupported, requestPermission } = useFCM()
-  const [isSaving, setIsSaving] = useState(false)
-  const [saveMessage, setSaveMessage] = useState<string | null>(null)
-  
   // ── Pomodoro Settings Modal ────────────────────────────────
   const [pomodoroModalOpen, setPomodoroModalOpen] = useState(false)
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   // Prevent hydration mismatch
   useEffect(() => {
@@ -58,30 +68,9 @@ export default function SettingsPage() {
   const userInitial = userName.charAt(0).toUpperCase()
   const avatarSeed = user?.user_metadata?.avatar_seed || null
 
-  const handleSaveProfile = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsSaving(true)
-    setSaveMessage(null)
-
-    const formData = new FormData(e.currentTarget)
-    const newName = formData.get("name") as string
-
-    try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.updateUser({
-        data: { name: newName },
-      })
-
-      if (error) throw error
-      setSaveMessage("Profil berhasil disimpan!")
-    } catch {
-      setSaveMessage("Gagal menyimpan profil")
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
   const handleLogout = async () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
     // 1. Clear all local cache immediately
     clearClientCache()
     try {
@@ -90,7 +79,7 @@ export default function SettingsPage() {
     } catch {
       // Continue — local data already cleared
     }
-    window.location.href = "/login"
+    window.location.replace("/login")
   }
 
   return (
@@ -113,45 +102,26 @@ export default function SettingsPage() {
           <CardDescription>Informasi profil kamu</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <UserAvatar 
-              name={userName || "User"} 
-              seed={avatarSeed}
-              size={64}
-              className="h-16 w-16"
-            />
-            <div>
-              <p className="font-medium">{userName}</p>
-              <p className="text-sm text-muted-foreground">{userEmail}</p>
-            </div>
-          </div>
-          <Separator />
-          <form onSubmit={handleSaveProfile} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nama</Label>
-                <Input id="name" name="name" defaultValue={userName} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  defaultValue={userEmail}
-                  disabled
-                  className="opacity-60"
-                />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <UserAvatar 
+                name={userName || "User"} 
+                seed={avatarSeed}
+                size={64}
+                className="h-16 w-16"
+              />
+              <div>
+                <p className="font-medium text-lg">{userName}</p>
+                <p className="text-sm text-muted-foreground">{userEmail}</p>
               </div>
             </div>
-            {saveMessage && (
-              <p className={`text-sm ${saveMessage.includes("berhasil") ? "text-green-600 dark:text-green-400" : "text-destructive"}`}>
-                {saveMessage}
-              </p>
-            )}
-            <Button type="submit" disabled={isSaving}>
-              {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+            <Button variant="outline" asChild>
+              <Link href="/dashboard/profile" className="gap-2">
+                <User className="h-4 w-4" />
+                Ubah Profil
+              </Link>
             </Button>
-          </form>
+          </div>
         </CardContent>
       </Card>
 
@@ -372,8 +342,8 @@ export default function SettingsPage() {
             <Button
               variant="outline"
               size="sm"
-              className="gap-2"
-              onClick={handleLogout}
+              className="gap-2 text-destructive hover:bg-destructive hover:text-white"
+              onClick={() => setIsLogoutDialogOpen(true)}
             >
               <LogOut className="h-4 w-4" />
               Logout
@@ -381,6 +351,31 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Logout Confirmation */}
+      <AlertDialog open={isLogoutDialogOpen} onOpenChange={setIsLogoutDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Konfirmasi Logout</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah kamu yakin ingin keluar dari akun FlowDay?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoggingOut}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                handleLogout()
+              }}
+              disabled={isLoggingOut}
+              className="bg-destructive text-white hover:bg-destructive/90 dark:text-destructive-foreground"
+            >
+              {isLoggingOut ? 'Keluar...' : 'Ya, Logout'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Pomodoro Settings Modal */}
       <PomodoroSettingsModal
